@@ -65,7 +65,7 @@ export class DifficultyAdjuster {
         // Consensus Critical
         return this.targetTime
     }
-    private static alpha: number = 0.003
-    private static targetTime: number = 30000 / Math.LN2
+    private static alpha: number = 0.01
+    private static targetTime: number = 1000 / Math.LN2
 
 }

@@ -2,6 +2,7 @@
 *.sw?
 *.png
 .DS_Store
+.vscode/
 package-lock.json
 coverage
 blockdb*

@@ -1,11 +1,9 @@
-import { wordlists } from "bip39"
 import { getLogger } from "log4js"
 import Long = require("long")
 import { Address } from "../common/address"
 import { Block } from "../common/block"
 import { BlockHeader } from "../common/blockHeader"
 import { ITxPool } from "../common/itxPool"
-import { TxPool } from "../common/txPool"
 import { DBBlock } from "../consensus/database/dbblock"
 import { WorldState } from "../consensus/database/worldState"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
@@ -14,7 +12,7 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { CpuMiner } from "./cpuMiner"
-import { StratumServer } from "./stratumServer"
+import { FreeHyconServer } from "./freehyconServer"
 
 const logger = getLogger("Miner")
 
@@ -29,11 +27,11 @@ export class MinerServer {
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
 
-    private txpool: ITxPool
-    private consensus: IConsensus
-    private network: INetwork
-    private stratumServer: StratumServer
-    private cpuMiner: CpuMiner
+    public txpool: ITxPool
+    public consensus: IConsensus
+    public network: INetwork
+    private stratumServer: FreeHyconServer
+    // private cpuMiner: CpuMiner
     private intervalId: NodeJS.Timer
     private worldState: WorldState
 
@@ -42,8 +40,8 @@ export class MinerServer {
         this.worldState = worldState
         this.consensus = consensus
         this.network = network
-        this.stratumServer = new StratumServer(this, stratumPort)
-        this.cpuMiner = new CpuMiner(this, cpuMiners)
+        this.stratumServer = new FreeHyconServer(this, stratumPort)
+        // this.cpuMiner = new CpuMiner(this, cpuMiners)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
     }
 
@@ -54,17 +52,18 @@ export class MinerServer {
         }
     }
     public stop(): void {
-        this.cpuMiner.stop()
+        // this.cpuMiner.stop()
         this.stratumServer.stop()
     }
 
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
-        return { hashRate: this.cpuMiner.hashRate(), address: globalOptions.minerAddress, cpuCount: this.cpuMiner.minerCount }
+        // return { hashRate: this.cpuMiner.hashRate(), address: globalOptions.minerAddress, cpuCount: this.cpuMiner.minerCount }
+        return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }
     }
 
     public setMinerCount(count: number) {
         globalOptions.cpuMiners = count
-        this.cpuMiner.minerCount = count
+        // this.cpuMiner.minerCount = count
     }
 
     private candidate(previousDBBlock: DBBlock, previousHash: Hash): void {
@@ -80,9 +79,9 @@ export class MinerServer {
 
         const miner: Address = new Address(globalOptions.minerAddress)
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
-        clearInterval(this.intervalId)
+        // clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
-        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 2000)
+        // this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 2000)
 
     }
 
@@ -90,7 +89,8 @@ export class MinerServer {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
 
         const { stateTransition: { currentStateRoot }, validTxs, invalidTxs } = await this.worldState.next(previousDBBlock.header.stateRoot, miner)
-        this.txpool.removeTxs(invalidTxs)
+
+        await this.txpool.removeTxs(invalidTxs)
         const block = new Block({
             header: new BlockHeader({
                 difficulty: previousDBBlock.nextDifficulty,
@@ -105,7 +105,7 @@ export class MinerServer {
         })
 
         const prehash = block.header.preHash()
-        this.cpuMiner.putWork(block, prehash, block.header.difficulty)
-        this.stratumServer.putWork(block, prehash, this.cpuMiner.minerCount)
+        // this.cpuMiner.putWork(block, prehash, block.header.difficulty)
+        this.stratumServer.putWork(block, prehash)
     }
 }

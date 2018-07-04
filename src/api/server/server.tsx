@@ -55,7 +55,8 @@ export class HttpServer {
                 message: "resource not found",
             })
         })
-        this.app.listen(port, "localhost", () => { opn(`http://localhost:${port}`) })
+        // this.app.listen(port, "localhost", () => { opn(`http://localhost:${port}`) })
+        this.app.listen(port, "localhost")
         this.hyconServer = hyconServer
         logger.info(">>>>>>> Started RESTful API")
     }
