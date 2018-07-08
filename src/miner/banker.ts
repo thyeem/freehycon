@@ -26,32 +26,35 @@ const bankerRecover = {
 export class Banker {
     private banker: Wallet
     private minerServer: MinerServer
-    private mapMiner: Map<string, IMiner>
-    private readonly feeRate: number = 0.01
+    private mapHashrate: Map<string, number>
+    private readonly ratePoolFee: number = 0.03
     private readonly txFee: number = 0.000000001
     private readonly cofounder: string[] = ["H3fsSec3yxrj792zHyEY8JoXZN4SUsQuh"]
 
-    constructor(minerServer: MinerServer, mapMiner: Map<string, IMiner>) {
+    constructor(minerServer: MinerServer, mapHashrate: Map<string, number>) {
         this.minerServer = minerServer
-        this.mapMiner = mapMiner
+        this.mapHashrate = mapHashrate
         this.banker = Wallet.generate(bankerRecover)
     }
-    public async profitSharing(profit: number) {
+    public async distributeIncome(income: number) {
         try {
             let hashrateSum: number = 0
-            profit -= profit * this.feeRate
-            logger.error(`here: ${profit}`)
-            for (const [key, val] of this.mapMiner) { logger.warn(`socketId: ${key}, address: ${val.address}`) }
-            for (const [key, miner] of this.mapMiner) { hashrateSum += miner.hashrate }
-            for (const [key, miner] of this.mapMiner) {
-                const amount = profit * miner.hashrate / hashrateSum
-                const tx = await this.makeTx(miner.address, amount, this.txFee)
+            const net = income * this.ratePoolFee
+            logger.error(`Income: ${income}`)
+            logger.error(`NetDist: ${net}`)
+            for (const [address, hashrate] of this.mapHashrate) {
+                logger.warn(`address: ${address}, hashrate: ${hashrate}`)
+                hashrateSum += hashrate
+            }
+            for (const [address, hashrate] of this.mapHashrate) {
+                const amount = net * hashrate / hashrateSum
+                const tx = await this.makeTx(address, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
-            logger.fatal(`Sharing mining profits from the banker:`)
+            logger.fatal(`income distribution from the banker:`)
         } catch (e) {
-            logger.fatal(`Sharing mining profits failed: ${e}`)
+            logger.fatal(`income distribution failed: ${e}`)
         }
     }
     public async makeTx(to: string, amount: number, minerFee: number): Promise<SignedTx> {
@@ -60,7 +63,7 @@ export class Banker {
             address: to,
             amount,
             minerFee,
-            name: "profitSharing",
+            name: "Income Distribution",
             nonce,
         }
         const address = new Address(tx.address)

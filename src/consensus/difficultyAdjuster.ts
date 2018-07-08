@@ -7,6 +7,7 @@ import { DBBlock } from "./database/dbblock"
 const logger = getLogger("Difficulty")
 
 export class DifficultyAdjuster {
+    public static alpha: number = 0.1
     public static adjustDifficulty(previousDBBlock: DBBlock, timeStamp: number) {
         // Consensus Critical
         const timeDelta = previousDBBlock.height > 0 ? timeStamp - previousDBBlock.header.timeStamp : DifficultyAdjuster.targetTime
@@ -14,7 +15,11 @@ export class DifficultyAdjuster {
         const tEMA = DifficultyAdjuster.calcEMA(timeDelta, previousDBBlock.tEMA)
         const pEMA = DifficultyAdjuster.calcEMA(previousDBBlock.nextDifficulty, previousDBBlock.pEMA)
         const nextDifficulty = (tEMA * pEMA) / DifficultyAdjuster.targetTime
-
+        if (DifficultyAdjuster.alpha <= 0.01) {
+            DifficultyAdjuster.alpha = 0.01
+        } else {
+            DifficultyAdjuster.alpha -= 0.00125
+        }
         return { nextDifficulty, tEMA, pEMA }
     }
 
@@ -65,7 +70,6 @@ export class DifficultyAdjuster {
         // Consensus Critical
         return this.targetTime
     }
-    private static alpha: number = 0.01
-    private static targetTime: number = 1000 / Math.LN2
+    private static targetTime: number = 10000 / Math.LN2
 
 }
