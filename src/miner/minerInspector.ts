@@ -151,6 +151,8 @@ export class MinerInspector {
             }
             this.onJob.solved = true
             this.tJobEnd = Date.now()
+            logger.error(`Estimated hashrate: ${(1.0 / (this.difficulty * 0.001 * this.medianTime)).toFixed(4)} H/s`)
+            logger.error(`difficulty alpha: ${this.alpha}`)
 
             // const minedBlock = new Block(this.onJob.block)
             // minedBlock.header.nonce = nonce

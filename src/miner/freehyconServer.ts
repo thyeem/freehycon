@@ -61,6 +61,7 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
+    private readonly nProblems = 180
     private jobId: number
     private worker: number
     private minerServer: MinerServer
@@ -164,8 +165,8 @@ export class FreeHyconServer {
                             let result = false
                             result = await miner.inspector.completeWork(req.params.nonce)
                             if (result) {
-                                if (miner.inspector.jobId === 10) {
-                                    const hashrate = 1.0 / (miner.inspector.difficulty * miner.inspector.medianTime)
+                                if (miner.inspector.jobId === this.nProblems) {
+                                    const hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
                                     this.updateMinerInfo(socket.id, false, hashrate)
                                     miner.status = MinerStatus.Hired
                                     miner.inspector = null
@@ -310,8 +311,8 @@ export class FreeHyconServer {
             this.minerServer.submitBlock(minedBlock)
 
             // income distribution
-            const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
-            banker.distributeIncome(240)
+            // const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
+            // banker.distributeIncome(240)
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
