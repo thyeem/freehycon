@@ -33,7 +33,7 @@ export interface IMiner {
     address: string
     hashrate: number
     status: MinerStatus
-    test: MinerInspector
+    inspector: MinerInspector
 }
 
 function genPrehash(): Uint8Array {
@@ -49,11 +49,11 @@ function checkAddress(address: string) {
 
 const fakeBlock = new Block({
     header: new BlockHeader({
-        difficulty: -1,
+        difficulty: 0.01,
         merkleRoot: new Hash(randomBytes(32)),
-        miner: new Hash(randomBytes(32)),
+        miner: new Uint8Array(20),
         nonce: -1,
-        previousHash: [],
+        previousHash: [new Hash(randomBytes(32))],
         stateRoot: new Hash(randomBytes(32)),
         timeStamp: Date.now(),
     }),
@@ -79,7 +79,7 @@ export class FreeHyconServer {
         this.mapHashrate = new Map<string, number>()
         this.jobId = 0
         this.initialize()
-        // setInterval(() => this.dumpStatus(), 10000)
+        setInterval(() => this.dumpStatus(), 10000)
     }
     public dumpStatus() {
         let totalHashrate: number = 0
@@ -110,18 +110,18 @@ export class FreeHyconServer {
         this.net.on("mining", async (req: any, deferred: any, socket: any) => {
             let miner = this.mapMiner.get(socket.id)
             let job: IJob
-            let inspector: MinerInspector
             if (miner === undefined) {
                 logger.fatal(`New miner socket(${socket.id}) connected`)
                 const newMiner: IMiner = {
                     address: "",
                     hashrate: 0,
+                    inspector: new MinerInspector(),
                     socket,
                     status: MinerStatus.Applied,
-                    test: new MinerInspector(),
                 }
                 this.mapMiner.set(socket.id, newMiner)
             }
+
             switch (req.method) {
                 case "subscribe":
                     deferred.resolve([
@@ -141,10 +141,10 @@ export class FreeHyconServer {
 
                     if (miner.status < MinerStatus.Hired) {
                         miner.status = MinerStatus.OnInterview
-                        inspector = miner.test
-                        job = inspector.newInternJob(fakeBlock, genPrehash())
-                        inspector.notifyInternJob(miner.socket, getRandomIndex(), job)
-                    } else {
+                        job = miner.inspector.newInternJob(fakeBlock, genPrehash(), miner.inspector.difficulty)
+                        miner.inspector.notifyInternJob(miner.socket, getRandomIndex(), job)
+                    }
+                    if (miner.status === MinerStatus.Hired) {
                         job = this.mapJob.get(this.jobId)
                         if (job !== undefined) {
                             this.notifyJob(socket, getRandomIndex(), job)
@@ -153,13 +153,17 @@ export class FreeHyconServer {
                     break
                 case "submit":
                     if (miner.status === MinerStatus.OnInterview) {
-                        inspector = miner.test
-                        const id = miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6)
-                        job = inspector.onJob
+                        const intern = miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6)
+                        job = miner.inspector.onJob
                         if (job !== undefined && !job.solved) {
-                            logger.warn(`Intern(${id}) submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
+                            logger.warn(`Intern(${intern}) submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
                             let result = false
-                            result = await inspector.completeWork(req.params.nonce)
+                            result = await miner.inspector.completeWork(req.params.nonce)
+                            if (result) {
+                                const nextDifficulty = miner.inspector.adjustDifficulty()
+                                job = miner.inspector.newInternJob(fakeBlock, genPrehash(), nextDifficulty)
+                                miner.inspector.notifyInternJob(miner.socket, getRandomIndex(), job)
+                            }
                             deferred.resolve([result])
                         }
                     }
@@ -260,7 +264,7 @@ export class FreeHyconServer {
             const cryptonightHash = await Hash.hashCryptonight(buffer)
             logger.fatal(`nonce: ${nonceStr}, targetHex: ${job.targetHex}, target: ${job.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
             if (!DifficultyAdjuster.acceptable(cryptonightHash, job.target)) {
-                logger.error(`Stratum server received incorrect nonce: ${nonce.toString()}`)
+                logger.error(`nonce verification >> received incorrect nonce: ${nonce.toString()}`)
                 return false
             }
 

@@ -1,8 +1,8 @@
 import { getLogger } from "log4js"
+import Long = require("long")
 import { Block } from "../common/block"
 import { Hash } from "../util/hash"
 import { IJob } from "./freehyconServer"
-import Long = require("long")
 
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
@@ -11,7 +11,8 @@ export class MinerInspector {
     public targetTime: number
     public tEMA: number
     public pEMA: number
-    public timeStamp: number
+    public tJobStart: number
+    public tJobEnd: number
     public difficulty: number
     public onJob: IJob
     public jobId: number
@@ -23,12 +24,12 @@ export class MinerInspector {
         this.tEMA = this.targetTime
         this.pEMA = 0.01
         this.difficulty = 0.01
-        this.timeStamp = 0
+        this.tJobStart = 0
+        this.tJobEnd = 0
     }
 
-    public adjustDifficulty(timeStamp: number) {
-        // Consensus Critical
-        const timeDelta = (this.timeStamp === 0) ? this.targetTime : timeStamp - this.timeStamp
+    public adjustDifficulty(): number {
+        const timeDelta = (this.jobId === 1) ? this.targetTime : this.tJobEnd - this.tJobStart
         const tEMA = this.calcEMA(timeDelta, this.tEMA)
         const pEMA = this.calcEMA(this.difficulty, this.pEMA)
         const nextDifficulty = (tEMA * pEMA) / this.targetTime
@@ -40,6 +41,7 @@ export class MinerInspector {
         this.tEMA = tEMA
         this.pEMA = pEMA
         this.difficulty = nextDifficulty
+        return nextDifficulty
     }
     public calcEMA(newValue: number, previousEMA: number) {
         const newEMA = this.alpha * newValue + (1 - this.alpha) * previousEMA
@@ -79,11 +81,11 @@ export class MinerInspector {
         }
         return true
     }
-    public newInternJob(block: Block, prehash: Uint8Array): IJob {
+    public newInternJob(block: Block, prehash: Uint8Array, difficulty: number): IJob {
         this.jobId++
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
-        const target = this.getTarget(block.header.difficulty, 32)
-        const targetHex = this.getTarget(block.header.difficulty, 8).toString("hex")
+        const target = this.getTarget(difficulty, 32)
+        const targetHex = this.getTarget(difficulty, 8).toString("hex")
         const job = {
             block,
             id: this.jobId,
@@ -113,6 +115,7 @@ export class MinerInspector {
         ]).then(
             () => {
                 this.onJob = job
+                this.tJobStart = Date.now()
                 logger.debug(`Put intern job(${job.id}): ${socket.id}`)
             },
             () => {
@@ -136,15 +139,16 @@ export class MinerInspector {
             const cryptonightHash = await Hash.hashCryptonight(buffer)
             logger.fatal(`nonce: ${nonceStr}, targetHex: ${this.onJob.targetHex}, target: ${this.onJob.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
             if (!this.acceptable(cryptonightHash, this.onJob.target)) {
-                logger.error(`Stratum server received incorrect nonce: ${nonce.toString()}`)
+                logger.error(`(intern) nonce verification >> received incorrect nonce: ${nonce.toString()}`)
                 return false
             }
 
             if (this.onJob.solved) {
-                logger.fatal(`Job(${this.onJob.id}) already solved`)
+                logger.fatal(`Intern job(${this.onJob.id}) already solved`)
                 return true
             }
             this.onJob.solved = true
+            this.tJobEnd = Date.now()
 
             // const minedBlock = new Block(this.onJob.block)
             // minedBlock.header.nonce = nonce
