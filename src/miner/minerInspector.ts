@@ -2,7 +2,7 @@ import { getLogger } from "log4js"
 import Long = require("long")
 import { Block } from "../common/block"
 import { Hash } from "../util/hash"
-import { IJob } from "./freehyconServer"
+import { IJob, IMiner } from "./freehyconServer"
 
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
@@ -16,6 +16,7 @@ export class MinerInspector {
     public difficulty: number
     public onJob: IJob
     public jobId: number
+    public nick: string
 
     constructor() {
         this.jobId = 0
@@ -95,11 +96,12 @@ export class MinerInspector {
             target,
             targetHex,
         }
+        logger.fatal(`Intern(${this.nick}) created a new job(${job.id})`)
         return job
     }
     public notifyInternJob(socket: any, index: number, job: IJob) {
         if (socket === undefined) {
-            logger.error("(intern job) undefined of the stratum socket:")
+            logger.error(`Intern(${this.nick}) undefined of the stratum socket:`)
             return
         }
         socket.notify([
@@ -116,10 +118,10 @@ export class MinerInspector {
             () => {
                 this.onJob = job
                 this.tJobStart = Date.now()
-                logger.debug(`Put intern job(${job.id}): ${socket.id}`)
+                logger.fatal(`Intern(${this.nick}) put job(${job.id}): ${socket.id}`)
             },
             () => {
-                logger.error(`Put intern job failed: ${socket.id}`)
+                logger.error(`Intern(${this.nick}) put job failed: ${socket.id}`)
             },
         )
     }
@@ -139,12 +141,12 @@ export class MinerInspector {
             const cryptonightHash = await Hash.hashCryptonight(buffer)
             logger.fatal(`nonce: ${nonceStr}, targetHex: ${this.onJob.targetHex}, target: ${this.onJob.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
             if (!this.acceptable(cryptonightHash, this.onJob.target)) {
-                logger.error(`(intern) nonce verification >> received incorrect nonce: ${nonce.toString()}`)
+                logger.error(`Intern(${this.nick}) nonce verification >> received incorrect nonce: ${nonce.toString()}`)
                 return false
             }
 
             if (this.onJob.solved) {
-                logger.fatal(`Intern job(${this.onJob.id}) already solved`)
+                logger.fatal(`Intern(${this.nick}) job(${this.onJob.id}) already solved`)
                 return true
             }
             this.onJob.solved = true
@@ -159,8 +161,11 @@ export class MinerInspector {
             // banker.distributeIncome(240)
             return true
         } catch (e) {
-            throw new Error(`Fail to submit nonce: ${e}`)
+            throw new Error(`Intern(${this.nick}) Fail to submit nonce: ${e}`)
         }
+    }
+    public setNick(miner: IMiner) {
+        this.nick = miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6)
     }
     private hexToLongLE(val: string): Long {
         const buf = new Uint8Array(Buffer.from(val, "hex"))
@@ -174,5 +179,4 @@ export class MinerInspector {
         }
         return new Long(low, high, true)
     }
-
 }

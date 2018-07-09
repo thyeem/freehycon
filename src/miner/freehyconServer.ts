@@ -60,8 +60,9 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    private jobId: number
     private readonly numJobBuffer = 10
+    private jobId: number
+    private worker: number
     private minerServer: MinerServer
     private port: number
     private net: any = undefined
@@ -78,6 +79,7 @@ export class FreeHyconServer {
         this.mapMiner = new Map<string, IMiner>()
         this.mapHashrate = new Map<string, number>()
         this.jobId = 0
+        this.worker = 0
         this.initialize()
         setInterval(() => this.dumpStatus(), 10000)
     }
@@ -86,7 +88,7 @@ export class FreeHyconServer {
         for (const [address, hashrate] of this.mapHashrate) {
             totalHashrate += hashrate
         }
-        logger.fatal(`Total Hashrate: ${totalHashrate} H/s | Miners: ${this.mapMiner.size}`)
+        logger.fatal(`Total Hashrate: ${totalHashrate.toFixed(4)} H/s | Miners [working / total]: ${this.worker} / ${this.mapMiner.size}`)
     }
     public stop() {
         for (const [jobId, job] of this.mapJob) {
@@ -96,12 +98,14 @@ export class FreeHyconServer {
     }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
-            const job = this.newJob(block, prehash)
-            this.mapMiner.forEach((miner, key, map) => {
-                if (miner.socket !== undefined && miner.status === MinerStatus.Hired) {
-                    this.notifyJob(miner.socket, getRandomIndex(), job)
-                }
-            })
+            if (this.worker > 0) {
+                const job = this.newJob(block, prehash)
+                this.mapMiner.forEach((miner, key, map) => {
+                    if (miner.socket !== undefined && miner.status === MinerStatus.Hired) {
+                        this.notifyJob(miner.socket, getRandomIndex(), job)
+                    }
+                })
+            }
         } catch (e) {
             logger.error(`putWork failed: ${e}`)
         }
@@ -137,6 +141,7 @@ export class FreeHyconServer {
                     miner = this.mapMiner.get(socket.id)
                     miner.address = checkAddress(address)
                     this.mapMiner.set(socket.id, miner)
+                    miner.inspector.setNick(miner)
                     deferred.resolve([true])
 
                     if (miner.status < MinerStatus.Hired) {
@@ -153,13 +158,19 @@ export class FreeHyconServer {
                     break
                 case "submit":
                     if (miner.status === MinerStatus.OnInterview) {
-                        const intern = miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6)
                         job = miner.inspector.onJob
                         if (job !== undefined && !job.solved) {
-                            logger.warn(`Intern(${intern}) submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
+                            logger.warn(`Intern(${miner.inspector.nick}) submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
                             let result = false
                             result = await miner.inspector.completeWork(req.params.nonce)
                             if (result) {
+                                if (miner.inspector.jobId === 10) {
+                                    const hashrate = 1.0 / (miner.inspector.difficulty * miner.inspector.medianTime)
+                                    this.updateMinerInfo(socket.id, false, hashrate)
+                                    miner.status = MinerStatus.Hired
+                                    miner.inspector = null
+                                    break
+                                }
                                 const nextDifficulty = miner.inspector.adjustDifficulty()
                                 job = miner.inspector.newInternJob(fakeBlock, genPrehash(), nextDifficulty)
                                 miner.inspector.notifyInternJob(miner.socket, getRandomIndex(), job)
@@ -193,8 +204,26 @@ export class FreeHyconServer {
 
         this.net.on("close", (socketId: any) => {
             logger.fatal(`Miner socket(${socketId}) closed `)
+            this.updateMinerInfo(socketId, true)
             this.mapMiner.delete(socketId)
         })
+    }
+
+    private updateMinerInfo(socketId: string, remove: boolean, hashrate?: number) {
+        const miner = this.mapMiner.get(socketId)
+        if (miner !== undefined) {
+            if (hashrate !== undefined) {
+                let hashrateSofar = this.mapHashrate.get(miner.address)
+                hashrateSofar = (hashrateSofar !== undefined) ? hashrateSofar + hashrate : hashrate
+                this.mapHashrate.set(miner.address, hashrateSofar)
+            }
+            if (remove === true && miner.status === MinerStatus.Hired) {
+                this.worker--
+            }
+            if (remove === false && miner.status < MinerStatus.Hired) {
+                this.worker++
+            }
+        }
     }
     private newJob(block: Block, prehash: Uint8Array): IJob {
         this.jobId++
@@ -213,7 +242,7 @@ export class FreeHyconServer {
             targetHex,
         }
         this.mapJob.set(this.jobId, job)
-        logger.warn(`Created new job(${this.jobId})`)
+        logger.warn(`Created a new job(${this.jobId})`)
         // debugging
         // for (const [key, val] of this.mapJob) { logger.warn(`JobId: ${key}, target: ${val.targetHex}, solved: ${val.solved}`) }
         // for (const [key, val] of this.mapMiner) { logger.warn(`socketId: ${key}, address: ${val.address}`) }
@@ -281,8 +310,8 @@ export class FreeHyconServer {
             this.minerServer.submitBlock(minedBlock)
 
             // income distribution
-            // const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
-            // banker.distributeIncome(240)
+            const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
+            banker.distributeIncome(240)
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
