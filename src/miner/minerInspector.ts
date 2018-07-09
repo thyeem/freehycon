@@ -7,6 +7,7 @@ import { IJob, IMiner } from "./freehyconServer"
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
     public readonly medianTime: number = 10000
+    public readonly numJobBuffer: number = 10
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -14,9 +15,10 @@ export class MinerInspector {
     public tJobStart: number
     public tJobEnd: number
     public difficulty: number
-    public onJob: IJob
+    // public onJob: IJob
     public jobId: number
     public nick: string
+    public mapJob: Map<number, IJob>
 
     constructor() {
         this.jobId = 0
@@ -27,6 +29,7 @@ export class MinerInspector {
         this.difficulty = 0.01
         this.tJobStart = 0
         this.tJobEnd = 0
+        this.mapJob = new Map<number, IJob>()
     }
 
     public adjustDifficulty(): number {
@@ -84,6 +87,7 @@ export class MinerInspector {
     }
     public newInternJob(block: Block, prehash: Uint8Array, difficulty: number): IJob {
         this.jobId++
+        this.mapJob.delete(this.jobId - this.numJobBuffer)
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
         const target = this.getTarget(difficulty, 32)
         const targetHex = this.getTarget(difficulty, 8).toString("hex")
@@ -96,6 +100,7 @@ export class MinerInspector {
             target,
             targetHex,
         }
+        this.mapJob.set(this.jobId, job)
         logger.fatal(`Intern(${this.nick}) created a new job(${job.id})`)
         return job
     }
@@ -116,7 +121,6 @@ export class MinerInspector {
             true,
         ]).then(
             () => {
-                this.onJob = job
                 this.tJobStart = Date.now()
                 logger.fatal(`Intern(${this.nick}) put job(${job.id}): ${socket.id}`)
             },
@@ -126,41 +130,39 @@ export class MinerInspector {
         )
     }
 
-    public async completeWork(nonceStr: string): Promise<boolean> {
+    public async completeWork(jobId: number, nonceStr: string): Promise<boolean> {
         try {
             if (nonceStr.length !== 16) {
-                logger.warn(`Invalid nonce: ${nonceStr}`)
+                logger.warn(`Intern(${this.nick}) invalid nonce: ${nonceStr}`)
+                return false
+            }
+
+            const job = this.mapJob.get(jobId)
+            if (job === undefined) {
+                logger.warn(`Intern(${this.nick}) miner submitted unknown/old job(${jobId})`)
                 return false
             }
 
             const nonce = this.hexToLongLE(nonceStr)
             const buffer = Buffer.allocUnsafe(72)
-            buffer.fill(this.onJob.prehash, 0, 64)
+            buffer.fill(job.prehash, 0, 64)
             buffer.writeUInt32LE(nonce.getLowBitsUnsigned(), 64)
             buffer.writeUInt32LE(nonce.getHighBitsUnsigned(), 68)
             const cryptonightHash = await Hash.hashCryptonight(buffer)
-            logger.fatal(`nonce: ${nonceStr}, targetHex: ${this.onJob.targetHex}, target: ${this.onJob.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
-            if (!this.acceptable(cryptonightHash, this.onJob.target)) {
+            logger.fatal(`nonce: ${nonceStr}, targetHex: ${job.targetHex}, target: ${job.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
+            if (!this.acceptable(cryptonightHash, job.target)) {
                 logger.error(`Intern(${this.nick}) nonce verification >> received incorrect nonce: ${nonce.toString()}`)
                 return false
             }
 
-            if (this.onJob.solved) {
-                logger.fatal(`Intern(${this.nick}) job(${this.onJob.id}) already solved`)
+            if (job.solved) {
+                logger.fatal(`Intern(${this.nick}) job(${job.id}) already solved`)
                 return true
             }
-            this.onJob.solved = true
+            job.solved = true
             this.tJobEnd = Date.now()
             logger.error(`Estimated hashrate: ${(1.0 / (this.difficulty * 0.001 * this.medianTime)).toFixed(4)} H/s`)
             logger.error(`difficulty alpha: ${this.alpha}`)
-
-            // const minedBlock = new Block(this.onJob.block)
-            // minedBlock.header.nonce = nonce
-            // this.minerServer.submitBlock(minedBlock)
-
-            // income distribution
-            // const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
-            // banker.distributeIncome(240)
             return true
         } catch (e) {
             throw new Error(`Intern(${this.nick}) Fail to submit nonce: ${e}`)

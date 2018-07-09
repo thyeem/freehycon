@@ -158,12 +158,13 @@ export class FreeHyconServer {
                     }
                     break
                 case "submit":
+                    const jobId: number = Number(req.params.job_id)
                     if (miner.status === MinerStatus.OnInterview) {
-                        job = miner.inspector.onJob
+                        job = miner.inspector.mapJob.get(jobId)
                         if (job !== undefined && !job.solved) {
                             logger.warn(`Intern(${miner.inspector.nick}) submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
                             let result = false
-                            result = await miner.inspector.completeWork(req.params.nonce)
+                            result = await miner.inspector.completeWork(jobId, req.params.nonce)
                             if (result) {
                                 if (miner.inspector.jobId === this.nProblems) {
                                     const hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
@@ -180,7 +181,6 @@ export class FreeHyconServer {
                         }
                     }
                     if (miner.status === MinerStatus.Hired) {
-                        const jobId: number = Number(req.params.job_id)
                         job = this.mapJob.get(jobId)
                         if (job !== undefined && !job.solved) {
                             logger.warn(`Submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
