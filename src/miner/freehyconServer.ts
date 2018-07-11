@@ -79,6 +79,8 @@ const fakeBlock = new Block({
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly nProblems = 180
+    private readonly problemsInterview = 100
+    private readonly problemsDayoff = 10
     private jobId: number
     private worker: number
     private minerServer: MinerServer
@@ -99,7 +101,7 @@ export class FreeHyconServer {
         this.jobId = 0
         this.worker = 0
         this.initialize()
-        setInterval(() => this.dumpStatus(), 10000)
+        setInterval(() => this.dumpStatus(), 30000)
     }
     public dumpStatus() {
         let totalHashrate: number = 0
@@ -136,7 +138,7 @@ export class FreeHyconServer {
                 const newMiner: IMiner = {
                     address: "",
                     hashrate: 0,
-                    inspector: new MinerInspector(0.005, 0.1, true),
+                    inspector: new MinerInspector(0.005, 0.1, true, this.problemsInterview),
                     socket,
                     status: MinerStatus.NotHired,
                 }
@@ -158,12 +160,10 @@ export class FreeHyconServer {
                     miner.address = checkAddress(address)
                     this.mapMiner.set(socket.id, miner)
                     deferred.resolve([true])
-                    if (miner.status === MinerStatus.NotHired) {
+                    if (miner.status < MinerStatus.Working) {
                         miner.status = MinerStatus.OnInterview
                         const newJob = this.newJob(fakeBlock, genPrehash(), miner)
                         this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
-                    } else {
-                        socket.close()
                     }
                     // if (miner.status === MinerStatus.Hired) {
                     //     job = this.mapJob.get(this.jobId)
@@ -185,18 +185,19 @@ export class FreeHyconServer {
                             result = await this.completeWork(jobId, req.params.nonce)
                         } else {
                             result = await this.completeWork(jobId, req.params.nonce, miner)
-                            if (result) {
-                                if (miner.inspector.jobId === this.nProblems) {
-                                    const hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
-                                    this.updateMinerInfo(socket.id, false, hashrate)
-                                    miner.status = MinerStatus.Working
-                                    miner.inspector = null
-                                    break
+                            miner.inspector.quit = (miner.inspector.jobId > miner.inspector.problems) ? true : false
+                            if (result && miner.inspector.quit) {
+                                const hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
+                                this.updateMinerInfo(socket.id, false, hashrate)
+                                if (miner.status === MinerStatus.OnInterview) {
+                                    miner.inspector = new MinerInspector(0.1, 0.05, false, this.problemsDayoff)
                                 }
-                                miner.inspector.adjustDifficulty()
-                                const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-                                this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+                                miner.status = MinerStatus.Working
+                                break
                             }
+                            miner.inspector.adjustDifficulty()
+                            const newJob = this.newJob(fakeBlock, genPrehash(), miner)
+                            this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
 
                         }
                         deferred.resolve([result])
@@ -270,9 +271,6 @@ export class FreeHyconServer {
             this.mapJob.set(this.jobId, job)
         }
         logger.warn(`${nick}Created a new job(${id})`)
-        // debugging
-        // for (const [key, val] of this.mapJob) { logger.warn(`JobId: ${key}, target: ${val.targetHex}, solved: ${val.solved}`) }
-        // for (const [key, val] of this.mapMiner) { logger.warn(`socketId: ${key}, address: ${val.address}`) }
         return job
     }
     private notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
@@ -305,16 +303,15 @@ export class FreeHyconServer {
         try {
             const job = (miner !== undefined) ? miner.inspector.mapJob.get(jobId) : this.mapJob.get(jobId)
             const nick = (miner !== undefined) ? getNick(miner) : ""
-
             if (nonceStr.length !== 16) {
                 logger.warn(`${nick}Invalid nonce: ${nonceStr}`)
                 return false
             }
-
             if (job === undefined) {
                 logger.warn(`${nick}Miner submitted unknown/old job(${jobId})`)
                 return false
             }
+
             const nonce = hexToLongLE(nonceStr)
             const buffer = Buffer.allocUnsafe(72)
             buffer.fill(job.prehash, 0, 64)

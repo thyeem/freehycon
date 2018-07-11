@@ -17,9 +17,11 @@ export class MinerInspector {
     public difficulty: number
     public jobId: number
     public mapJob: Map<number, IJob>
+    public problems: number
     public dynamic: boolean
+    public quit: boolean
 
-    constructor(difficulty: number, alpha: number, dynamic: boolean) {
+    constructor(difficulty: number, alpha: number, dynamic: boolean, problems?: number) {
         this.jobId = 0
         this.alpha = alpha
         this.targetTime = this.medianTime / Math.LN2
@@ -30,6 +32,8 @@ export class MinerInspector {
         this.tJobEnd = 0
         this.mapJob = new Map<number, IJob>()
         this.dynamic = dynamic
+        this.quit = false
+        this.problems = (problems !== undefined) ? problems : 100
     }
     public adjustDifficulty(): number {
         const timeDelta = (this.jobId === 1) ? this.targetTime : this.tJobEnd - this.tJobStart
@@ -40,8 +44,8 @@ export class MinerInspector {
         this.pEMA = pEMA
         this.difficulty = nextDifficulty
         if (this.dynamic) {
-            this.alpha -= 0.0015
-            if (this.alpha < 0.01) { this.alpha = 0.01 }
+            this.alpha -= 0.001
+            if (this.alpha < 0.05) { this.alpha = 0.05 }
         }
         return nextDifficulty
     }

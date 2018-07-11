@@ -59,7 +59,7 @@ export class Server {
                 this.network.addPeer(ip, port).catch((e) => logger.error(`Failed to connect to client: ${e}`))
             }
         }
-        // await this.runSync()
+        await this.runSync()
     }
 
     public async runSync(): Promise<void> {
