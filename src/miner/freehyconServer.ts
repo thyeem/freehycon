@@ -48,7 +48,6 @@ function checkAddress(address: string) {
     const donation = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
     return (Address.isAddress(address)) ? address : donation
 }
-
 function getNick(miner: IMiner): string {
     return "(" + miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6) + ") "
 }
@@ -64,7 +63,6 @@ export function hexToLongLE(val: string): Long {
     }
     return new Long(low, high, true)
 }
-
 const fakeBlock = new Block({
     header: new BlockHeader({
         difficulty: 0.01,
@@ -79,17 +77,16 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
-    private readonly problemsInterview = 10
+    private readonly problemsInterview = 50
     private readonly problemsDayoff = 5
     private readonly FreqDayoff = 5
     private jobId: number
-    private worker: number
+    private timeStampLock: boolean
     private minerServer: MinerServer
     private port: number
     private net: any = undefined
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
-    private mapHashrate: Map<string, number>
 
     constructor(minerServer: MinerServer, port: number = 9081) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
@@ -98,43 +95,39 @@ export class FreeHyconServer {
         this.net = new LibStratum({ settings: { port: this.port } })
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
-        this.mapHashrate = new Map<string, number>()
         this.jobId = 0
-        this.worker = 0
         this.initialize()
-        setInterval(() => this.dumpStatus(), 30000)
+        setInterval(() => this.dumpStatus(), 10000)
     }
     public dumpStatus() {
-        let totalHashrate: number = 0
-        let workerHash: number = 0
-        this.worker = 0
+        let totalHashrate = 0
+        let workerHash = 0
+        let worker = 0
         for (const [key, miner] of this.mapMiner) {
             totalHashrate += miner.hashrate
             if (miner.status === MinerStatus.Working) {
                 workerHash += miner.hashrate
-                this.worker++
+                worker++
             }
         }
-        logger.warn(`Total(${this.mapMiner.size}): ${totalHashrate.toFixed(4)} H/s | working miners(${this.worker}): ${workerHash.toFixed(4)} H/s`)
+        logger.warn(`Total(${this.mapMiner.size}): ${totalHashrate.toFixed(4)} H/s | working miners(${worker}): ${workerHash.toFixed(4)} H/s`)
     }
     public stop() {
-        for (const [jobId, job] of this.mapJob) {
-            job.solved = true
-            this.mapJob.set(jobId, job)
-        }
+        for (const [jobId, job] of this.mapJob) { job.solved = true }
     }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
-            const job = this.newJob(block, prehash)
+            const pubJob = this.newJob(block, prehash)
             for (const [key, miner] of this.mapMiner) {
                 if (miner.socket === undefined) { continue }
                 if (miner.status === MinerStatus.Working) {
-                    this.notifyJob(miner.socket, getRandomIndex(), job)
+                    this.notifyJob(miner.socket, getRandomIndex(), pubJob)
                     continue
                 }
                 if (miner.status === MinerStatus.OnInterview || miner.status === MinerStatus.Dayoff) {
-                    const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-                    this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+                    // const priJob = this.newJob(fakeBlock, genPrehash(), miner)
+                    // this.notifyJob(miner.socket, getRandomIndex(), priJob, miner)
+                    this.putWorkOnInspector(miner)
                     continue
                 }
             }
@@ -145,75 +138,49 @@ export class FreeHyconServer {
     private initialize() {
         this.net.on("mining", async (req: any, deferred: any, socket: any) => {
             let miner = this.mapMiner.get(socket.id)
-            if (miner === undefined) {
-                logger.fatal(`New miner socket(${socket.id}) connected`)
-                const newMiner: IMiner = {
-                    address: "",
-                    career: 0,
-                    hashrate: 0,
-                    inspector: new MinerInspector(0.005, 0.1, true, this.problemsInterview),
-                    socket,
-                    status: MinerStatus.NotHired,
-                }
-                this.mapMiner.set(socket.id, newMiner)
-            }
+            if (miner === undefined) { miner = this.welcomeNewMiner(socket) }
             switch (req.method) {
                 case "subscribe":
-                    deferred.resolve([
-                        socket.id.toString(),
-                        "0",
-                        "0",
-                        4,
-                    ])
+                    deferred.resolve([socket.id.toString(), "0", "0", 4])
                     break
                 case "authorize":
                     const address = req.params[0]
                     logger.fatal(`Authorizing miner id: ${address}`)
-                    miner = this.mapMiner.get(socket.id)
                     miner.address = checkAddress(address)
-                    this.mapMiner.set(socket.id, miner)
                     deferred.resolve([true])
-                    if (miner.status < MinerStatus.Working) {
+                    if (miner.status === MinerStatus.NotHired) {
                         miner.status = MinerStatus.OnInterview
-                        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-                        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+                        this.putWorkOnInspector(miner)
                     }
                     break
                 case "submit":
-                    const jobId: number = Number(req.params.job_id)
-                    miner = this.mapMiner.get(socket.id)
+                    const jobId = Number(req.params.job_id)
                     const job = (miner.status === MinerStatus.Working) ? this.mapJob.get(jobId) : miner.inspector.mapJob.get(jobId)
                     const nick = (miner.status === MinerStatus.Working) ? "" : getNick(miner)
 
                     if (job !== undefined && !job.solved) {
-                        logger.warn(`${nick}submit job id: ${req.params.job_id} / nonce: ${req.params.nonce} / result: ${req.params.result}`)
+                        logger.warn(`${nick}submit job id: ${req.params.job_id} | nonce: ${req.params.nonce} | result: ${req.params.result}`)
                         let result = false
-                        if (miner.status === MinerStatus.Working) {
-                            // MinerStatus.Working
-                            result = await this.completeWork(jobId, req.params.nonce)
-                        } else {
-                            // MinerStatus.Dayoff & MinerStatus.Oninterview
-                            result = await this.completeWork(jobId, req.params.nonce, miner)
-                            if (miner.inspector.submits > miner.inspector.problems) {
-                                miner.inspector.quit = true
-                                miner.inspector.submits = 0
-                            }
-                            if (result) {
-                                if (miner.inspector.quit) {
-                                    miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
-                                    if (miner.status === MinerStatus.OnInterview) {
-                                        miner.inspector = new MinerInspector(miner.inspector.difficulty, 0.05, false, this.problemsDayoff)
-                                    }
-                                    miner.status = MinerStatus.Working
-                                    miner.career++
-                                    break
-                                }
-                                miner.inspector.adjustDifficulty()
-                                const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-                                this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
-                            }
-                        }
                         deferred.resolve([result])
+                        if (miner.status === MinerStatus.Working) {
+                            result = await this.completeWork(jobId, req.params.nonce)
+                        } else {  // MinerStatus.Dayoff & MinerStatus.Oninterview
+                            result = await this.completeWork(jobId, req.params.nonce, miner)
+                            if (!result) { break }
+                            if (miner.inspector.submits >= miner.inspector.problems) {
+                                miner.inspector.submits = 0
+                                miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
+                                if (miner.status === MinerStatus.OnInterview) {
+                                    miner.inspector = new MinerInspector(miner.inspector.difficulty, 0.01, this.problemsDayoff)
+                                }
+                                miner.status = MinerStatus.Working
+                                miner.career++
+                                break
+                            }
+                            miner.inspector.adjustDifficulty(job.block.header.timeStamp)
+                            const newJob = this.newJob(fakeBlock, genPrehash(), miner)
+                            this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+                        }
                     }
                     break
                 default:
@@ -234,6 +201,23 @@ export class FreeHyconServer {
             this.mapMiner.delete(socketId)
         })
     }
+    private welcomeNewMiner(socket: any): IMiner {
+        logger.fatal(`New miner socket(${socket.id}) connected`)
+        const miner: IMiner = {
+            address: "",
+            career: 0,
+            hashrate: 0,
+            inspector: new MinerInspector(0.005, 0.1, this.problemsInterview, true),
+            socket,
+            status: MinerStatus.NotHired,
+        }
+        this.mapMiner.set(socket.id, miner)
+        return this.mapMiner.get(socket.id)
+    }
+    private putWorkOnInspector(miner: IMiner) {
+        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
+        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+    }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
         let id = (miner !== undefined) ? miner.inspector.jobId : this.jobId
@@ -250,15 +234,7 @@ export class FreeHyconServer {
         const difficulty = (miner !== undefined) ? miner.inspector.difficulty : block.header.difficulty
         const target = DifficultyAdjuster.getTarget(difficulty, 32)
         const targetHex = DifficultyAdjuster.getTarget(difficulty, 8).toString("hex")
-        const job = {
-            block,
-            id,
-            prehash,
-            prehashHex,
-            solved: false,
-            target,
-            targetHex,
-        }
+        const job = { block, id, prehash, prehashHex, solved: false, target, targetHex }
 
         if (miner !== undefined) {
             miner.inspector.mapJob.set(miner.inspector.jobId, job)
@@ -274,22 +250,14 @@ export class FreeHyconServer {
             logger.error(`${nick}undefined of the stratum socket:`)
             return
         }
-        socket.notify([
-            index,
-            job.prehashHex,
-            job.targetHex,
-            job.id,
-            "0",
-            "0",
-            "0",
-            "0",
-            true,
-        ]).then(
-            () => {
-                if (miner !== undefined) { miner.inspector.tJobStart = Date.now() }
+        socket.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
+            .then(() => {
+                if (miner !== undefined && !this.timeStampLock) {
+                    job.block.header.timeStamp = Date.now()
+                    this.timeStampLock = true
+                }
                 logger.fatal(`${nick}Put job(${job.id}): ${socket.id}`)
-            },
-            () => {
+            }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
         )
@@ -325,12 +293,11 @@ export class FreeHyconServer {
 
             job.solved = true
             if (miner !== undefined) {
-                miner.inspector.tJobEnd = Date.now()
                 miner.inspector.submits++
-                // miner.inspector.mapJob.set(job.id, job)
-                for (const [key, iminer] of miner.inspector.mapJob) {
-                    iminer.solved = true
-                }
+                miner.inspector.decayAlpha()
+                miner.inspector.timeJobComplete = Date.now()
+                this.timeStampLock = false
+                for (const [key, iminer] of miner.inspector.mapJob) { iminer.solved = true }
                 logger.error(`${nick}Estimated hashrate: ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)).toFixed(4)} H/s`)
                 logger.error(`${nick}difficulty alpha: ${miner.inspector.alpha}`)
             } else {
@@ -344,13 +311,15 @@ export class FreeHyconServer {
                 }
                 this.minerServer.submitBlock(minedBlock)
                 // income distribution
-                // const banker = new Banker(this.minerServer, new Map(this.mapHashrate))
-                // banker.distributeIncome(240)
+                // this.bookKeeping()
             }
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
         }
     }
-
+    private bookKeeping() {
+        const banker = new Banker(this.minerServer, this.mapMiner)
+        banker.distributeIncome(240)
+    }
 }

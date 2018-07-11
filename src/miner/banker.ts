@@ -11,7 +11,7 @@ interface ISendTx {
     address: string
     amount: number
     minerFee: number
-    nonce?: number
+    nonce: number
 }
 const logger = getLogger("Banker")
 
@@ -26,29 +26,29 @@ const bankerRecover = {
 export class Banker {
     private banker: Wallet
     private minerServer: MinerServer
-    private mapHashrate: Map<string, number>
-    private readonly ratePoolFee: number = 0.03
+    private mapMiner: Map<string, IMiner>
+    private readonly poolFee: number = 0.03
     private readonly txFee: number = 0.000000001
     private readonly cofounder: string[] = ["H3fsSec3yxrj792zHyEY8JoXZN4SUsQuh"]
 
-    constructor(minerServer: MinerServer, mapHashrate: Map<string, number>) {
+    constructor(minerServer: MinerServer, mapMiner: Map<string, IMiner>) {
         this.minerServer = minerServer
-        this.mapHashrate = mapHashrate
+        this.mapMiner = mapMiner
         this.banker = Wallet.generate(bankerRecover)
     }
     public async distributeIncome(income: number) {
         try {
-            let hashrateSum: number = 0
-            const net = income * this.ratePoolFee
+            let hashrateTotal: number = 0
+            const net = income * (1.0 - this.poolFee)
             logger.error(`Income: ${income}`)
             logger.error(`NetDist: ${net}`)
-            for (const [address, hashrate] of this.mapHashrate) {
-                logger.warn(`address: ${address}, hashrate: ${hashrate}`)
-                hashrateSum += hashrate
+            for (const [key, miner] of this.mapMiner) {
+                logger.warn(`address: ${miner.address}, hashrate: ${miner.hashrate}`)
+                hashrateTotal += miner.hashrate
             }
-            for (const [address, hashrate] of this.mapHashrate) {
-                const amount = net * hashrate / hashrateSum
-                const tx = await this.makeTx(address, amount, this.txFee)
+            for (const [key, miner] of this.mapMiner) {
+                const amount = net * miner.hashrate / hashrateTotal
+                const tx = await this.makeTx(miner.address, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
