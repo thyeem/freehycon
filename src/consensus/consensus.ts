@@ -267,8 +267,8 @@ export class Consensus extends EventEmitter implements IConsensus {
                 + ` ${hash}(${dbBlock.height}, ${dbBlock.totalWork.toExponential()}),`
                 + ` BTip(${this.blockTip.height}, ${this.blockTip.totalWork.toExponential()}),`
                 + ` HTip(${this.headerTip.height}, ${this.headerTip.totalWork.toExponential()})`)
-            logger.error(`Estimated hashrate: ${(1.0 / (block.header.difficulty * 10)).toFixed(4)} H/s`)
-            logger.error(`difficulty alpha: ${DifficultyAdjuster.alpha}`)
+            // logger.error(`Estimated hashrate: ${(1.0 / (block.header.difficulty * 10)).toFixed(4)} H/s`)
+            // logger.error(`difficulty alpha: ${DifficultyAdjuster.alpha}`)
             return { oldStatus, status, htip: this.headerTip.height > startHtip }
         })
 

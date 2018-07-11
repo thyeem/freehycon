@@ -17,6 +17,7 @@ export class MinerInspector {
     public difficulty: number
     public jobId: number
     public mapJob: Map<number, IJob>
+    public submits: number
     public problems: number
     public dynamic: boolean
     public quit: boolean
@@ -33,6 +34,7 @@ export class MinerInspector {
         this.mapJob = new Map<number, IJob>()
         this.dynamic = dynamic
         this.quit = false
+        this.submits = 0
         this.problems = (problems !== undefined) ? problems : 100
     }
     public adjustDifficulty(): number {

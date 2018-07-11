@@ -81,7 +81,7 @@ export class MinerServer {
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
         clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
-        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 2000)
+        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 10000)
 
     }
 
