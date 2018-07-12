@@ -45,22 +45,24 @@ export class Banker {
             for (const [key, miner] of this.mapMiner) {
                 hashrateTotal += miner.hashrate
             }
-            const txs: SignedTx[] = []
+            // const txs: SignedTx[] = []
             // dist to miner
             for (const [key, miner] of this.mapMiner) {
                 const amount = net * miner.hashrate / hashrateTotal
                 const tx = await this.makeTx(miner.address, amount, this.txFee)
-                txs.push(tx)
+                const newTx = await this.minerServer.txpool.putTxs([tx])
+                this.minerServer.network.broadcastTxs(newTx)
             }
 
             // dist to cofounder
             for (const to of this.cofounder) {
                 const amount = (income - net) * 0.5
                 const tx = await this.makeTx(to, amount, this.txFee)
-                txs.push(tx)
+                const newTx = await this.minerServer.txpool.putTxs([tx])
+                this.minerServer.network.broadcastTxs(newTx)
             }
-            const newTxs = await this.minerServer.txpool.putTxs(txs)
-            this.minerServer.network.broadcastTxs(newTxs)
+            // const newTxs = await this.minerServer.txpool.putTxs(txs)
+            // this.minerServer.network.broadcastTxs(newTxs)
             logger.fatal(`income distribution from the banker:`)
         } catch (e) {
             logger.fatal(`income distribution failed: ${e}`)
@@ -84,7 +86,7 @@ export class Banker {
         const address = wallet.pubKey.address()
         const account = await this.minerServer.consensus.getAccount(address)
         if (account === undefined) {
-            return 1
+            return 0
         } else {
             const addressTxs = this.minerServer.txpool.getTxsOfAddress(address)
             let nonce: number
