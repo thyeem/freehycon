@@ -17,9 +17,8 @@ export class MinerInspector {
     public jobId: number
     public mapJob: Map<number, IJob>
     public submits: number
-    public problems: number
 
-    constructor(difficulty: number, alpha: number, problems: number = 50) {
+    constructor(difficulty: number, alpha: number) {
         this.jobId = 0
         this.alpha = alpha
         this.targetTime = this.medianTime / Math.LN2
@@ -28,7 +27,6 @@ export class MinerInspector {
         this.pEMA = this.difficulty
         this.timeJobComplete = 0
         this.mapJob = new Map<number, IJob>()
-        this.problems = problems
         this.submits = 0
     }
     public adjustDifficulty(timeJobStart: number) {
