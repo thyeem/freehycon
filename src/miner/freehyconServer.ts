@@ -79,7 +79,7 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly problemsInterview = 30
     private readonly problemsDayoff = 5
-    private readonly FreqDayoff = 5
+    private readonly FreqDayoff = 3
     private jobId: number
     private timeStampLock: boolean
     private minerServer: MinerServer

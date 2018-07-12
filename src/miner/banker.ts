@@ -27,7 +27,7 @@ export class Banker {
     private banker: Wallet
     private minerServer: MinerServer
     private mapMiner: Map<string, IMiner>
-    private readonly poolFee: number = 0.03
+    private readonly poolFee: number = 0.029
     private readonly txFee: number = 0.000000001
     private readonly cofounder: string[] = ["H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ", "H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C"]
 
@@ -46,11 +46,17 @@ export class Banker {
                 hashrateTotal += miner.hashrate
             }
             const txs: SignedTx[] = []
+            // dist to miner
             for (const [key, miner] of this.mapMiner) {
                 const amount = net * miner.hashrate / hashrateTotal
-                // const newTx = await this.minerServer.txpool.putTxs([tx])
-                // this.minerServer.network.broadcastTxs(newTx)
                 const tx = await this.makeTx(miner.address, amount, this.txFee)
+                txs.push(tx)
+            }
+
+            // dist to cofounder
+            for (const to of this.cofounder) {
+                const amount = (income - net) * 0.5
+                const tx = await this.makeTx(to, amount, this.txFee)
                 txs.push(tx)
             }
             const newTxs = await this.minerServer.txpool.putTxs(txs)
