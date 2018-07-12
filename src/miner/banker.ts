@@ -45,8 +45,7 @@ export class Banker {
             for (const [key, miner] of this.mapMiner) {
                 hashrateTotal += miner.hashrate
             }
-            // const txs: SignedTx[] = []
-            // dist to miner
+
             for (const [key, miner] of this.mapMiner) {
                 const amount = net * miner.hashrate / hashrateTotal
                 if (amount === 0) { continue }
@@ -54,8 +53,6 @@ export class Banker {
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
-
-            // dist to cofounder
             for (const to of this.cofounder) {
                 const amount = (income - net) * 0.5
                 if (amount === 0) { continue }
@@ -63,8 +60,6 @@ export class Banker {
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
-            // const newTxs = await this.minerServer.txpool.putTxs(txs)
-            // this.minerServer.network.broadcastTxs(newTxs)
             logger.fatal(`income distribution from the banker:`)
         } catch (e) {
             logger.fatal(`income distribution failed: ${e}`)

@@ -49,7 +49,7 @@ function checkAddress(address: string) {
     return (Address.isAddress(address)) ? address : donation
 }
 function getNick(miner: IMiner): string {
-    return "(" + miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 6) + ") "
+    return miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 4) + "(" + miner.career + ") | "
 }
 export function hexToLongLE(val: string): Long {
     const buf = new Uint8Array(Buffer.from(val, "hex"))
@@ -77,9 +77,12 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
+    private readonly initialDifficulty = 0.001
+    private readonly alphaInterview = 0.01
+    private readonly alphaDayoff = 0.01
     private readonly problemsInterview = 30
     private readonly problemsDayoff = 3
-    private readonly FreqDayoff = 6
+    private readonly FreqDayoff = 5
     private jobId: number
     private timeStampLock: boolean
     private minerServer: MinerServer
@@ -143,7 +146,7 @@ export class FreeHyconServer {
                     break
                 case "authorize":
                     const address = req.params[0]
-                    logger.fatal(`Authorizing miner id: ${address}`)
+                    logger.warn(`Authorizing miner id: ${address}`)
                     miner.address = checkAddress(address)
                     deferred.resolve([true])
                     if (miner.status === MinerStatus.NotHired) {
@@ -157,9 +160,8 @@ export class FreeHyconServer {
                     const nick = (miner.status === MinerStatus.Working) ? "" : getNick(miner)
 
                     if (job !== undefined && !job.solved) {
-                        logger.warn(`${nick}submit job id: ${req.params.job_id} | nonce: ${req.params.nonce} | result: ${req.params.result}`)
+                        logger.fatal(`${nick}submit job(${req.params.job_id}): ${req.params.result}`)
                         let result = false
-                        deferred.resolve([result])
                         if (miner.status === MinerStatus.Working) {
                             result = await this.completeWork(jobId, req.params.nonce)
                         } else {  // MinerStatus.Dayoff & MinerStatus.Oninterview
@@ -169,7 +171,7 @@ export class FreeHyconServer {
                                 miner.inspector.submits = 0
                                 miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
                                 if (miner.status === MinerStatus.OnInterview) {
-                                    miner.inspector = new MinerInspector(miner.inspector.difficulty, 0.005, this.problemsDayoff)
+                                    miner.inspector = new MinerInspector(miner.inspector.difficulty, this.alphaDayoff, this.problemsDayoff)
                                 }
                                 miner.status = MinerStatus.Working
                                 miner.career++
@@ -178,6 +180,7 @@ export class FreeHyconServer {
                             miner.inspector.adjustDifficulty(job.block.header.timeStamp)
                             this.putWorkOnInspector(miner)
                         }
+                        deferred.resolve([result])
                     }
                     break
                 default:
@@ -199,12 +202,12 @@ export class FreeHyconServer {
         })
     }
     private welcomeNewMiner(socket: any): IMiner {
-        logger.fatal(`New miner socket(${socket.id}) connected`)
+        logger.warn(`New miner socket(${socket.id}) connected`)
         const miner: IMiner = {
             address: "",
             career: 0,
             hashrate: 0,
-            inspector: new MinerInspector(0.005, 0.05, this.problemsInterview),
+            inspector: new MinerInspector(this.initialDifficulty, this.alphaInterview, this.problemsInterview),
             socket,
             status: MinerStatus.NotHired,
         }
@@ -234,7 +237,7 @@ export class FreeHyconServer {
         } else {
             this.mapJob.set(this.jobId, job)
         }
-        logger.warn(`${nick}Created a new job(${id})`)
+        logger.debug(`${nick}Created a new job(${id})`)
         return job
     }
     private notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
@@ -278,7 +281,7 @@ export class FreeHyconServer {
             buffer.writeUInt32LE(nonce.getLowBitsUnsigned(), 64)
             buffer.writeUInt32LE(nonce.getHighBitsUnsigned(), 68)
             const cryptonightHash = await Hash.hashCryptonight(buffer)
-            logger.fatal(`${nick}nonce: ${nonceStr}, targetHex: ${job.targetHex}, target: ${job.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
+            logger.debug(`${nick}nonce: ${nonceStr}, targetHex: ${job.targetHex}, target: ${job.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
             if (!DifficultyAdjuster.acceptable(cryptonightHash, job.target)) {
                 logger.error(`${nick}nonce verification >> received incorrect nonce: ${nonce.toString()}`)
                 return false
@@ -291,12 +294,10 @@ export class FreeHyconServer {
             job.solved = true
             if (miner !== undefined) {
                 miner.inspector.submits++
-                miner.inspector.decayAlpha()
                 miner.inspector.timeJobComplete = Date.now()
                 this.timeStampLock = false
                 for (const [key, iminer] of miner.inspector.mapJob) { iminer.solved = true }
-                logger.error(`${nick}Estimated hashrate: ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)).toFixed(4)} H/s`)
-                logger.error(`${nick}difficulty alpha: ${miner.inspector.alpha}`)
+                logger.error(`${nick}Estimated hashrate(${miner.inspector.submits}): ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)).toFixed(4)} H/s`)
             } else {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce

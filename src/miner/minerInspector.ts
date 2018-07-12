@@ -18,9 +18,8 @@ export class MinerInspector {
     public mapJob: Map<number, IJob>
     public submits: number
     public problems: number
-    public dynamic: boolean
 
-    constructor(difficulty: number, alpha: number, problems: number = 50, dynamic: boolean = false) {
+    constructor(difficulty: number, alpha: number, problems: number = 50) {
         this.jobId = 0
         this.alpha = alpha
         this.targetTime = this.medianTime / Math.LN2
@@ -29,7 +28,6 @@ export class MinerInspector {
         this.pEMA = this.difficulty
         this.timeJobComplete = 0
         this.mapJob = new Map<number, IJob>()
-        this.dynamic = dynamic
         this.problems = problems
         this.submits = 0
     }
@@ -41,12 +39,6 @@ export class MinerInspector {
         this.tEMA = tEMA
         this.pEMA = pEMA
         this.difficulty = nextDifficulty
-    }
-    public decayAlpha() {
-        if (this.dynamic) {
-            this.alpha -= 0.001
-            if (this.alpha < 0.05) { this.alpha = 0.05 }
-        }
     }
     public calcEMA(newValue: number, previousEMA: number) {
         const newEMA = this.alpha * newValue + (1 - this.alpha) * previousEMA
