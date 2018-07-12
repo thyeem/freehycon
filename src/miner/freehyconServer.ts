@@ -77,7 +77,7 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
-    private readonly problemsInterview = 50
+    private readonly problemsInterview = 30
     private readonly problemsDayoff = 5
     private readonly FreqDayoff = 5
     private jobId: number
@@ -125,8 +125,6 @@ export class FreeHyconServer {
                     continue
                 }
                 if (miner.status === MinerStatus.OnInterview || miner.status === MinerStatus.Dayoff) {
-                    // const priJob = this.newJob(fakeBlock, genPrehash(), miner)
-                    // this.notifyJob(miner.socket, getRandomIndex(), priJob, miner)
                     this.putWorkOnInspector(miner)
                     continue
                 }
@@ -178,8 +176,7 @@ export class FreeHyconServer {
                                 break
                             }
                             miner.inspector.adjustDifficulty(job.block.header.timeStamp)
-                            const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-                            this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+                            this.putWorkOnInspector(miner)
                         }
                     }
                     break
@@ -213,10 +210,6 @@ export class FreeHyconServer {
         }
         this.mapMiner.set(socket.id, miner)
         return this.mapMiner.get(socket.id)
-    }
-    private putWorkOnInspector(miner: IMiner) {
-        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
     }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
@@ -261,6 +254,10 @@ export class FreeHyconServer {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
         )
+    }
+    private putWorkOnInspector(miner: IMiner) {
+        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
+        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
     }
     private async completeWork(jobId: number, nonceStr: string, miner?: IMiner): Promise<boolean> {
         try {
@@ -311,15 +308,12 @@ export class FreeHyconServer {
                 }
                 this.minerServer.submitBlock(minedBlock)
                 // income distribution
-                // this.bookKeeping()
+                const banker = new Banker(this.minerServer, this.mapMiner)
+                banker.distributeIncome(240)
             }
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
         }
-    }
-    private bookKeeping() {
-        const banker = new Banker(this.minerServer, this.mapMiner)
-        banker.distributeIncome(240)
     }
 }

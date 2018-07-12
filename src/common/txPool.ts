@@ -104,9 +104,7 @@ export class TxPool implements ITxPool {
                 }
             }
         }
-
         this.pool.resort()
-
         return broadcastTxs
     }
 
