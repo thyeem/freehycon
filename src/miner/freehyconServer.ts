@@ -169,7 +169,7 @@ export class FreeHyconServer {
                                 miner.inspector.submits = 0
                                 miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
                                 if (miner.status === MinerStatus.OnInterview) {
-                                    miner.inspector = new MinerInspector(miner.inspector.difficulty, 0.01, this.problemsDayoff)
+                                    miner.inspector = new MinerInspector(miner.inspector.difficulty, 0.005, this.problemsDayoff)
                                 }
                                 miner.status = MinerStatus.Working
                                 miner.career++
@@ -204,7 +204,7 @@ export class FreeHyconServer {
             address: "",
             career: 0,
             hashrate: 0,
-            inspector: new MinerInspector(0.005, 0.1, this.problemsInterview, true),
+            inspector: new MinerInspector(0.005, 0.05, this.problemsInterview),
             socket,
             status: MinerStatus.NotHired,
         }

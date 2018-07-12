@@ -49,6 +49,7 @@ export class Banker {
             // dist to miner
             for (const [key, miner] of this.mapMiner) {
                 const amount = net * miner.hashrate / hashrateTotal
+                if (amount === 0) { continue }
                 const tx = await this.makeTx(miner.address, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
@@ -57,6 +58,7 @@ export class Banker {
             // dist to cofounder
             for (const to of this.cofounder) {
                 const amount = (income - net) * 0.5
+                if (amount === 0) { continue }
                 const tx = await this.makeTx(to, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
