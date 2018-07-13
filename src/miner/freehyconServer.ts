@@ -77,9 +77,10 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
-    private readonly diffcultyInspector = 0.003
+    private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.02
     private readonly freqDayoff = 3
+    private readonly freqDist = 3
     private jobId: number
     private mined: number
     private timeStampLock: boolean
@@ -292,7 +293,7 @@ export class FreeHyconServer {
                 miner.inspector.timeJobComplete = Date.now()
                 this.timeStampLock = false
                 for (const [key, iminer] of miner.inspector.mapJob) { iminer.solved = true }
-                logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)).toFixed(1)} H/s`)
+                logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)).toFixed(1)} H/s`)
             } else {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
@@ -304,9 +305,11 @@ export class FreeHyconServer {
                 }
                 this.minerServer.submitBlock(minedBlock)
                 this.mined++
-                // income distribution
-                const banker = new Banker(this.minerServer, this.mapMiner)
-                banker.distributeIncome(240)
+
+                if (this.mined % this.freqDist === 1) {
+                    const banker = new Banker(this.minerServer, this.mapMiner)
+                    banker.distributeIncome(240 * this.freqDist)
+                }
             }
             return true
         } catch (e) {
@@ -314,7 +317,7 @@ export class FreeHyconServer {
         }
     }
     private numProblems(miner: IMiner) {
-        if (miner.career === 0) { return 100 }
+        if (miner.career === 0) { return Math.floor(2.0 / this.alphaInspector) - 1 }
         const dayoff = Math.floor(miner.career / this.freqDayoff)
         return Math.max(5, 15 - Math.floor(Math.log(dayoff)))
     }
