@@ -16,7 +16,7 @@ export class AddWallet extends React.Component<any, any> {
     public errMsg5: string = "Please enter your mnemonic"
     public errMsg6: string = "Duplicate wallet name"
     public errMsg7: string = "Please select Language"
-    public pattern1 = /^[a-zA-Z0-9]{2,20}$/
+    public pattern1 = /^[a-zA-Z0-9\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uAC00-\uD7AF\uD7B0-\uD7FF]{2,20}$/
     constructor(props: any) {
         super(props)
         this.state = {
@@ -31,8 +31,7 @@ export class AddWallet extends React.Component<any, any> {
             load: false,
             mnemonic: "",
             name: "",
-            passphrase1: "",
-            passphrase2: "",
+            passphrase: "",
             password1: "",
             password2: "",
             redirect: false,
@@ -69,23 +68,11 @@ export class AddWallet extends React.Component<any, any> {
         this.setState({ password2: data.target.value })
     }
     public handleCheckbox(event: any) {
+        if (event.target.checked === false) { this.setState({ passphrase: "" }) }
         this.setState({ advanced: event.target.checked })
     }
     public handlePassphrase(data: any) {
-        if (this.state.passphrase2 !== "") {
-            if (data.target.value === this.state.passphrase2) {
-                this.setState({ errorText2: "" })
-            } else { this.setState({ errorText2: "Not matched with passphrase" }) }
-        }
-        this.setState({ passphrase1: data.target.value })
-    }
-    public handleConfirmPassphrase(data: any) {
-        if (this.state.passphrase1 !== "") {
-            if (data.target.value === this.state.passphrase1) {
-                this.setState({ errorText2: "" })
-            } else { this.setState({ errorText2: "Not matched with passphrase" }) }
-        }
-        this.setState({ passphrase2: data.target.value })
+        this.setState({ passphrase: data.target.value })
     }
     public handleConfirmMnemonic(data: any) {
         this.setState({ confirmMnemonic: data.target.value })
@@ -117,7 +104,7 @@ export class AddWallet extends React.Component<any, any> {
         } else if (this.state.name.search(/\s/) !== -1 || !this.pattern1.test(this.state.name)) {
             alert(this.errMsg2)
         } else {
-            if (this.state.password1 !== this.state.password2 || this.state.passphrase1 !== this.state.passphrase2) {
+            if (this.state.password1 !== this.state.password2) {
                 alert(this.errMsg3)
             } else {
                 this.state.rest.setLoading(true)
@@ -163,7 +150,7 @@ export class AddWallet extends React.Component<any, any> {
                     language: this.state.language,
                     mnemonic: this.state.mnemonic,
                     name: this.state.name,
-                    passphrase: this.state.passphrase1,
+                    passphrase: this.state.passphrase,
                     password: this.state.password1,
                 }).then((data: string) => {
                     this.setState({ walletViewRedirect: true, address: data })
@@ -228,17 +215,11 @@ export class AddWallet extends React.Component<any, any> {
                             <IconButton iconStyle={{ color: "grey", fontSize: "15px" }} onClick={() => { this.setState({ dialog: true }) }}><Icon>help_outline</Icon></IconButton>
                             {(this.state.advanced)
                                 ? (<div>
-                                    <TextField style={{ marginRight: "3%" }} floatingLabelText="BIP39 Passphrase" floatingLabelFixed={true} type="password" autoComplete="off" name="pp1"
-                                        value={this.state.passphrase1}
+                                    <TextField style={{ marginRight: "3%" }} floatingLabelText="BIP39 Passphrase" floatingLabelFixed={true} autoComplete="off" name="pp"
+                                        value={this.state.passphrase}
                                         onChange={(data) => { this.handlePassphrase(data) }}
                                         onKeyPress={(event) => { if (event.key === "Enter") { event.preventDefault(); this.handleNext() } }}
                                     />
-                                    <TextField floatingLabelText="Confirm BIP39 Passphrase" floatingLabelFixed={true} type="password" autoComplete="off" name="pp2"
-                                        errorText={this.state.errorText2} errorStyle={{ float: "left" }}
-                                        value={this.state.passphrase2}
-                                        onChange={(data) => { this.handleConfirmPassphrase(data) }}
-                                        onKeyPress={(event) => { if (event.key === "Enter") { event.preventDefault(); this.handleNext() } }}
-                                    /><br />
                                 </div>)
                                 : (<div></div>)
                             }

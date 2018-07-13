@@ -1,9 +1,5 @@
 import { getLogger } from "log4js"
-import Long = require("long")
-import { Block } from "../common/block"
-import { Hash } from "../util/hash"
-import { hexToLongLE, IJob, IMiner } from "./freehyconServer"
-
+import { IJob } from "./freehyconServer"
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
     public readonly numJobBuffer: number = 10
@@ -46,5 +42,10 @@ export class MinerInspector {
     public calcEMA(newValue: number, previousEMA: number) {
         const newEMA = this.alpha * newValue + (1 - this.alpha) * previousEMA
         return newEMA
+    }
+    public stop() {
+        for (const [key, miner] of this.mapJob) {
+            miner.solved = true
+        }
     }
 }

@@ -49,7 +49,11 @@ function checkAddress(address: string) {
     return (Address.isAddress(address)) ? address : donation
 }
 function getNick(miner: IMiner): string {
-    return miner.address.slice(0, 6) + ":" + miner.socket.id.slice(0, 4) + "(" + miner.career + ") | "
+    return miner.address.slice(0, 8) + ":" + miner.socket.id.slice(0, 6) + "(" + miner.career + ") | "
+}
+function bufferToHexBE(target: Buffer) {
+    const buf = Buffer.from(target.slice(24, 32))
+    return Buffer.from(buf.reverse()).toString("hex")
 }
 export function hexToLongLE(val: string): Long {
     const buf = new Uint8Array(Buffer.from(val, "hex"))
@@ -77,11 +81,12 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
+    private readonly numInterviewProblems = 100
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly medianTime = 5000
     private readonly freqDayoff = 5
-    private readonly freqDist = 3
+    private readonly freqDist = 1
     private jobId: number
     private mined: number
     private minerServer: MinerServer
@@ -158,36 +163,31 @@ export class FreeHyconServer {
                     const jobId = Number(req.params.job_id)
                     const job = (miner.status === MinerStatus.Working) ? this.mapJob.get(jobId) : miner.inspector.mapJob.get(jobId)
                     const nick = (miner.status === MinerStatus.Working) ? "" : getNick(miner)
+                    let result = false
+                    if (job === undefined || job.solved === true) { break }
+                    logger.fatal(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
 
-                    if (job !== undefined && !job.solved) {
-                        logger.fatal(`${nick}submit job(${req.params.job_id}): ${req.params.result}`)
-                        let result = false
-                        if (miner.status === MinerStatus.Working) {
-                            result = await this.completeWork(jobId, req.params.nonce)
-                            if (result) {
-                                const banker = new Banker(this.minerServer, this.mapMiner)
-                                banker.distributeIncome(240)
-                            }
-                        } else {  // MinerStatus.Dayoff & MinerStatus.Oninterview
-                            result = await this.completeWork(jobId, req.params.nonce, miner)
-                            if (!result) { break }
-                            miner.inspector.adjustDifficulty()
-                            miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
-                            if (miner.inspector.submits >= this.numProblems(miner)) {
-                                miner.inspector.submits = 0
-                                miner.status = MinerStatus.Working
-                                break
-                            }
-                            this.putWorkOnInspector(miner)
+                    if (miner.status === MinerStatus.Working) {
+                        result = await this.completeWork(jobId, req.params.nonce)
+                        if (result) { this.payWages() }
+                    } else { // MinerStatus.Dayoff & MinerStatus.Oninterview
+                        result = await this.completeWork(jobId, req.params.nonce, miner)
+                        if (!result) { break }
+                        miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
+                        if (miner.inspector.submits >= this.numProblems(miner)) {
+                            miner.inspector.submits = 0
+                            miner.status = MinerStatus.Working
+                            break
                         }
-                        deferred.resolve([result])
+                        miner.inspector.adjustDifficulty()
+                        this.putWorkOnInspector(miner)
                     }
+                    deferred.resolve([result])
                     break
                 default:
                     deferred.reject(LibStratum.errors.METHOD_NOT_FOUND)
             }
         })
-
         this.net.on("mining.error", (error: any, socket: any) => {
             logger.error("Mining error: ", error)
         })
@@ -195,24 +195,13 @@ export class FreeHyconServer {
         this.net.listen().done((msg: any) => {
             logger.fatal(msg)
         })
-
         this.net.on("close", (socketId: any) => {
-            logger.debug(`Miner socket(${socketId}) closed `)
-            this.mapMiner.delete(socketId)
+            const miner = this.mapMiner.get(socketId)
+            if (miner !== undefined) {
+                logger.error(`Miner socket closed: ${miner.address} (${socketId})`)
+                this.mapMiner.delete(socketId)
+            }
         })
-    }
-    private welcomeNewMiner(socket: any): IMiner {
-        logger.warn(`New miner socket(${socket.id}) connected`)
-        const miner: IMiner = {
-            address: "",
-            career: 0,
-            hashrate: 0,
-            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector, this.medianTime),
-            socket,
-            status: MinerStatus.NotHired,
-        }
-        this.mapMiner.set(socket.id, miner)
-        return this.mapMiner.get(socket.id)
     }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
@@ -224,7 +213,6 @@ export class FreeHyconServer {
         } else {
             this.jobId = ++id
             this.mapJob.delete(id - this.numJobBuffer)
-
         }
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
         const difficulty = (miner !== undefined) ? miner.inspector.difficulty : block.header.difficulty
@@ -237,7 +225,7 @@ export class FreeHyconServer {
         } else {
             this.mapJob.set(this.jobId, job)
         }
-        logger.debug(`${nick}Created a new job(${id})`)
+        logger.fatal(`${nick}Created a new job(${id}): ${bufferToHexBE(job.target)}`)
         return job
     }
     private notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
@@ -276,49 +264,68 @@ export class FreeHyconServer {
             }
 
             const nonce = hexToLongLE(nonceStr)
-            const buffer = Buffer.allocUnsafe(72)
-            buffer.fill(job.prehash, 0, 64)
-            buffer.writeUInt32LE(nonce.getLowBitsUnsigned(), 64)
-            buffer.writeUInt32LE(nonce.getHighBitsUnsigned(), 68)
-            const cryptonightHash = await Hash.hashCryptonight(buffer)
-            logger.debug(`${nick}nonce: ${nonceStr}, targetHex: ${job.targetHex}, target: ${job.target.toString("hex")}, hash: ${Buffer.from(cryptonightHash).toString("hex")}`)
-            if (!DifficultyAdjuster.acceptable(cryptonightHash, job.target)) {
-                logger.error(`${nick}nonce verification >> received incorrect nonce: ${nonce.toString()}`)
+            const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
+            if (!nonceCheck) {
+                logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
                 return false
             }
             if (job.solved) {
-                logger.debug(`${nick}Job(${job.id}) already solved`)
+                logger.debug(`${nick}job(${job.id}) already solved`)
                 return true
             }
-
             job.solved = true
             if (miner !== undefined) {
-                miner.inspector.submits++
                 miner.inspector.timeJobComplete = Date.now()
                 miner.inspector.timeJobLock = false
-                for (const [key, iminer] of miner.inspector.mapJob) { iminer.solved = true }
+                miner.inspector.submits++
+                miner.inspector.stop()
                 logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${miner.hashrate.toFixed(1)} H/s`)
             } else {
+                this.stop()
+                this.updateHRInfo()
+                this.mined++
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                for (const [key, iminer] of this.mapMiner) {
-                    if (iminer.status === MinerStatus.Working) {
-                        iminer.career++
-                        if (iminer.career % this.freqDayoff === 0) { iminer.status = MinerStatus.Dayoff }
-                    }
-                }
                 this.minerServer.submitBlock(minedBlock)
-                this.mined++
             }
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
         }
     }
+    private welcomeNewMiner(socket: any): IMiner {
+        logger.warn(`New miner socket(${socket.id}) connected`)
+        const miner: IMiner = {
+            address: "",
+            career: 0,
+            hashrate: 0,
+            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector, this.medianTime),
+            socket,
+            status: MinerStatus.NotHired,
+        }
+        this.mapMiner.set(socket.id, miner)
+        return this.mapMiner.get(socket.id)
+    }
+    private payWages() {
+        if (this.mined % this.freqDist === 0) {
+            const banker = new Banker(this.minerServer, this.mapMiner)
+            banker.distributeIncome(240)
+        }
+    }
+    private updateHRInfo() {
+        for (const [key, miner] of this.mapMiner) {
+            if (miner.status === MinerStatus.Working) {
+                miner.career++
+                if (miner.career % this.freqDayoff === 0) {
+                    miner.status = MinerStatus.Dayoff
+                }
+            }
+        }
+    }
     private numProblems(miner: IMiner) {
-        if (miner.career === 0) { return 100 }
+        if (miner.career === 0) { return this.numInterviewProblems }
         const dayoff = Math.floor(miner.career / this.freqDayoff)
-        // return Math.max(4, 15 - Math.floor(Math.log(dayoff)))
-        return 4
+        // return Math.max(3, 10 - Math.floor(Math.log(dayoff)))
+        return 5
     }
 }

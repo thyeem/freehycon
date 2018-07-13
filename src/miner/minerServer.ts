@@ -11,27 +11,24 @@ import { IConsensus } from "../consensus/iconsensus"
 import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
-import { CpuMiner } from "./cpuMiner"
 import { FreeHyconServer } from "./freehyconServer"
-
 const logger = getLogger("Miner")
 
 export class MinerServer {
-    public static async checkNonce(preHash: Uint8Array, nonce: Long, difficulty: number): Promise<boolean> {
+    public static async checkNonce(preHash: Uint8Array, nonce: Long, difficulty: number, target?: Buffer): Promise<boolean> {
         // Consensus Critical
         const buffer = Buffer.allocUnsafe(72)
         buffer.fill(preHash, 0, 64)
         buffer.writeUInt32LE(nonce.getLowBitsUnsigned(), 64)
         buffer.writeUInt32LE(nonce.getHighBitsUnsigned(), 68)
-        const target = DifficultyAdjuster.getTarget(difficulty)
+        target = (target === undefined) ? DifficultyAdjuster.getTarget(difficulty) : target
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
 
     public txpool: ITxPool
     public consensus: IConsensus
     public network: INetwork
-    private stratumServer: FreeHyconServer
-    // private cpuMiner: CpuMiner
+    private freeHyconServer: FreeHyconServer
     private intervalId: NodeJS.Timer
     private worldState: WorldState
 
@@ -40,30 +37,23 @@ export class MinerServer {
         this.worldState = worldState
         this.consensus = consensus
         this.network = network
-        this.stratumServer = new FreeHyconServer(this, stratumPort)
-        // this.cpuMiner = new CpuMiner(this, cpuMiners)
+        this.freeHyconServer = new FreeHyconServer(this, stratumPort)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
     }
-
     public async submitBlock(block: Block) {
         this.stop()
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
         }
     }
-    public stop(): void {
-        // this.cpuMiner.stop()
-        this.stratumServer.stop()
-    }
+    public stop(): void { this.freeHyconServer.stop() }
 
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
-        // return { hashRate: this.cpuMiner.hashRate(), address: globalOptions.minerAddress, cpuCount: this.cpuMiner.minerCount }
         return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }
     }
 
     public setMinerCount(count: number) {
         globalOptions.cpuMiners = count
-        // this.cpuMiner.minerCount = count
     }
 
     private candidate(previousDBBlock: DBBlock, previousHash: Hash): void {
@@ -89,8 +79,7 @@ export class MinerServer {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
 
         const { stateTransition: { currentStateRoot }, validTxs, invalidTxs } = await this.worldState.next(previousDBBlock.header.stateRoot, miner)
-
-        await this.txpool.removeTxs(invalidTxs)
+        this.txpool.removeTxs(invalidTxs)
         const block = new Block({
             header: new BlockHeader({
                 difficulty: previousDBBlock.nextDifficulty,
@@ -105,7 +94,6 @@ export class MinerServer {
         })
 
         const prehash = block.header.preHash()
-        // this.cpuMiner.putWork(block, prehash, block.header.difficulty)
-        this.stratumServer.putWork(block, prehash)
+        this.freeHyconServer.putWork(block, prehash)
     }
 }

@@ -28,7 +28,6 @@ export class HttpServer {
         this.app = express()
         this.config()
         this.app.all("/*", (req: express.Request, res: express.Response, next: express.NextFunction) => {
-            // res.header("Access-Control-Allow-Origin", "localhost")
             res.header("Access-Control-Allow-Origin", "https://wallet.hycon.io")
             res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE")
             res.header("Access-Control-Allow-Headers", "Content-type, Accept, X-Access-Token, X-Key, Set-Cookie")
@@ -55,8 +54,15 @@ export class HttpServer {
                 message: "resource not found",
             })
         })
-        // this.app.listen(port, "localhost", () => { opn(`http://localhost:${port}`) })
-        this.app.listen(port, "localhost")
+        try {
+            if (options.nonLocal) {
+                this.app.listen(port, () => { opn(`http://localhost:${port}`) })
+            } else {
+                this.app.listen(port, "localhost")
+            }
+        } catch (error) {
+            logger.error(error)
+        }
         this.hyconServer = hyconServer
         logger.info(">>>>>>> Started RESTful API")
     }
@@ -88,6 +94,7 @@ export class HttpServer {
 
         router.post("/wallet", async (req: express.Request, res: express.Response) => {
             res.json(await this.rest.createNewWallet({
+                privateKey: req.body.privateKey,
                 mnemonic: req.body.mnemonic,
                 language: req.body.language,
                 passphrase: req.body.passphrase,
@@ -159,8 +166,8 @@ export class HttpServer {
         router.get("/address/:address", async (req: express.Request, res: express.Response) => {
             res.json(await this.rest.getAddressInfo(req.params.address))
         })
-        router.get("/getAllAccounts/:name", async (req: express.Request, res: express.Response) => {
-            res.json(await this.rest.getAllAccounts(req.params.name))
+        router.get("/getAllAccounts", async (req: express.Request, res: express.Response) => {
+            res.json(await this.rest.getAllAccounts(req.body.name, req.body.password, req.body.startIndex))
         })
         router.get("/block/height/:height", async (req: express.Request, res: express.Response) => {
             res.json(await this.rest.getBlockAtHeight(req.params.height))
@@ -269,6 +276,27 @@ export class HttpServer {
 
         router.get("/setMinerCount/:count", async (req: express.Request, res: express.Response) => {
             res.json(await this.rest.setMinerCount(req.params.count))
+        })
+
+        router.get("/getLedgerWallet/:startIndex/:count", async (req: express.Request, res: express.Response) => {
+            res.json(await this.rest.getLedgerWallet(req.params.startIndex, req.params.count))
+        })
+
+        router.get("/sendTxWithLedger/:index/:from/:to/:amount/:fee", async (req: express.Request, res: express.Response) => {
+            res.json(await this.rest.sendTxWithLedger(
+                req.params.index,
+                req.params.from,
+                req.params.to,
+                req.params.amount,
+                req.params.fee,
+                async (tx: SignedTx) => {
+                    const newTxs = await this.hyconServer.txQueue.putTxs([tx])
+                    this.hyconServer.broadcastTxs(newTxs)
+                }))
+        })
+
+        router.get("/possibilityLedger", async (req: express.Request, res: express.Response) => {
+            res.json(await this.rest.possibilityLedger())
         })
 
         this.app.use(`/api/${apiVersion}`, router)
