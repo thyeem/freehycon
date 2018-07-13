@@ -12,11 +12,13 @@ export class MinerInspector {
     public targetTime: number
     public tEMA: number
     public pEMA: number
-    public timeJobComplete: number
     public difficulty: number
     public jobId: number
-    public mapJob: Map<number, IJob>
     public submits: number
+    public timeJobStart: number
+    public timeJobComplete: number
+    public timeJobLock: boolean
+    public mapJob: Map<number, IJob>
 
     constructor(difficulty: number, alpha: number) {
         this.jobId = 0
@@ -25,12 +27,14 @@ export class MinerInspector {
         this.difficulty = difficulty
         this.tEMA = this.targetTime
         this.pEMA = this.difficulty
+        this.timeJobLock = false
+        this.timeJobStart = 0
         this.timeJobComplete = 0
         this.mapJob = new Map<number, IJob>()
         this.submits = 0
     }
-    public adjustDifficulty(timeJobStart: number) {
-        const timeDelta = (this.jobId === 1) ? this.targetTime : this.timeJobComplete - timeJobStart
+    public adjustDifficulty() {
+        const timeDelta = (this.jobId === 1) ? this.targetTime : this.timeJobComplete - this.timeJobStart
         const tEMA = this.calcEMA(timeDelta, this.tEMA)
         const pEMA = this.calcEMA(this.difficulty, this.pEMA)
         const nextDifficulty = (tEMA * pEMA) / this.targetTime

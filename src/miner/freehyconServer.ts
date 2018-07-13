@@ -78,12 +78,11 @@ const fakeBlock = new Block({
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly diffcultyInspector = 0.005
-    private readonly alphaInspector = 0.02
-    private readonly freqDayoff = 3
+    private readonly alphaInspector = 0.03
+    private readonly freqDayoff = 5
     private readonly freqDist = 3
     private jobId: number
     private mined: number
-    private timeStampLock: boolean
     private minerServer: MinerServer
     private port: number
     private net: any = undefined
@@ -167,13 +166,13 @@ export class FreeHyconServer {
                         } else {  // MinerStatus.Dayoff & MinerStatus.Oninterview
                             result = await this.completeWork(jobId, req.params.nonce, miner)
                             if (!result) { break }
+                            miner.inspector.adjustDifficulty()
+                            miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
                             if (miner.inspector.submits >= this.numProblems(miner)) {
                                 miner.inspector.submits = 0
-                                miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.medianTime)
                                 miner.status = MinerStatus.Working
                                 break
                             }
-                            miner.inspector.adjustDifficulty(job.block.header.timeStamp)
                             this.putWorkOnInspector(miner)
                         }
                         deferred.resolve([result])
@@ -244,10 +243,6 @@ export class FreeHyconServer {
         }
         socket.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
             .then(() => {
-                if (miner !== undefined && !this.timeStampLock) {
-                    job.block.header.timeStamp = Date.now()
-                    this.timeStampLock = true
-                }
                 logger.debug(`${nick}Put job(${job.id}): ${socket.id}`)
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
@@ -257,6 +252,10 @@ export class FreeHyconServer {
     private putWorkOnInspector(miner: IMiner) {
         const newJob = this.newJob(fakeBlock, genPrehash(), miner)
         this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+        if (!miner.inspector.timeJobLock) {
+            miner.inspector.timeJobStart = Date.now()
+            miner.inspector.timeJobLock = true
+        }
     }
     private async completeWork(jobId: number, nonceStr: string, miner?: IMiner): Promise<boolean> {
         try {
@@ -283,7 +282,7 @@ export class FreeHyconServer {
                 return false
             }
             if (job.solved) {
-                logger.fatal(`${nick}Job(${job.id}) already solved`)
+                logger.debug(`${nick}Job(${job.id}) already solved`)
                 return true
             }
 
@@ -291,9 +290,9 @@ export class FreeHyconServer {
             if (miner !== undefined) {
                 miner.inspector.submits++
                 miner.inspector.timeJobComplete = Date.now()
-                this.timeStampLock = false
+                miner.inspector.timeJobLock = false
                 for (const [key, iminer] of miner.inspector.mapJob) { iminer.solved = true }
-                logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${(1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)).toFixed(1)} H/s`)
+                logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${miner.hashrate.toFixed(1)} H/s`)
             } else {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
@@ -306,10 +305,8 @@ export class FreeHyconServer {
                 this.minerServer.submitBlock(minedBlock)
                 this.mined++
 
-                if (this.mined % this.freqDist === 1) {
-                    const banker = new Banker(this.minerServer, this.mapMiner)
-                    banker.distributeIncome(240 * this.freqDist)
-                }
+                const banker = new Banker(this.minerServer, this.mapMiner)
+                banker.distributeIncome(240)
             }
             return true
         } catch (e) {
@@ -317,7 +314,7 @@ export class FreeHyconServer {
         }
     }
     private numProblems(miner: IMiner) {
-        if (miner.career === 0) { return Math.floor(2.0 / this.alphaInspector) - 1 }
+        if (miner.career === 0) { return 100 }
         const dayoff = Math.floor(miner.career / this.freqDayoff)
         return Math.max(5, 15 - Math.floor(Math.log(dayoff)))
     }
