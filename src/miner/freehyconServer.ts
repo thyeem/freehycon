@@ -78,7 +78,8 @@ const fakeBlock = new Block({
 export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly diffcultyInspector = 0.005
-    private readonly alphaInspector = 0.03
+    private readonly alphaInspector = 0.06
+    private readonly medianTime = 5000
     private readonly freqDayoff = 5
     private readonly freqDist = 3
     private jobId: number
@@ -163,6 +164,10 @@ export class FreeHyconServer {
                         let result = false
                         if (miner.status === MinerStatus.Working) {
                             result = await this.completeWork(jobId, req.params.nonce)
+                            if (result) {
+                                const banker = new Banker(this.minerServer, this.mapMiner)
+                                banker.distributeIncome(240)
+                            }
                         } else {  // MinerStatus.Dayoff & MinerStatus.Oninterview
                             result = await this.completeWork(jobId, req.params.nonce, miner)
                             if (!result) { break }
@@ -202,7 +207,7 @@ export class FreeHyconServer {
             address: "",
             career: 0,
             hashrate: 0,
-            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector),
+            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector, this.medianTime),
             socket,
             status: MinerStatus.NotHired,
         }
@@ -304,9 +309,6 @@ export class FreeHyconServer {
                 }
                 this.minerServer.submitBlock(minedBlock)
                 this.mined++
-
-                const banker = new Banker(this.minerServer, this.mapMiner)
-                banker.distributeIncome(240)
             }
             return true
         } catch (e) {

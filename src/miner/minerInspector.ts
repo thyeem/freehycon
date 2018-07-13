@@ -6,8 +6,8 @@ import { hexToLongLE, IJob, IMiner } from "./freehyconServer"
 
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
-    public readonly medianTime: number = 3000
     public readonly numJobBuffer: number = 10
+    public medianTime: number
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -20,9 +20,10 @@ export class MinerInspector {
     public timeJobLock: boolean
     public mapJob: Map<number, IJob>
 
-    constructor(difficulty: number, alpha: number) {
+    constructor(difficulty: number, alpha: number, medianTime: number) {
         this.jobId = 0
         this.alpha = alpha
+        this.medianTime = medianTime
         this.targetTime = this.medianTime / Math.LN2
         this.difficulty = difficulty
         this.tEMA = this.targetTime
