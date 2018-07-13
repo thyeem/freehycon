@@ -6,7 +6,7 @@ import { hexToLongLE, IJob, IMiner } from "./freehyconServer"
 
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
-    public readonly medianTime: number = 10000
+    public readonly medianTime: number = 5000
     public readonly numJobBuffer: number = 10
     public alpha: number
     public targetTime: number

@@ -42,7 +42,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0x5FFFFFFF)
+    return Math.floor(Math.random() * 0xFFFF)
 }
 function checkAddress(address: string) {
     const donation = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
@@ -314,8 +314,8 @@ export class FreeHyconServer {
         }
     }
     private numProblems(miner: IMiner) {
-        if (miner.career === 0) { return 20 }
+        if (miner.career === 0) { return 100 }
         const dayoff = Math.floor(miner.career / this.freqDayoff)
-        return Math.max(2, 7 - Math.floor(Math.log(dayoff)))
+        return Math.max(5, 15 - Math.floor(Math.log(dayoff)))
     }
 }
