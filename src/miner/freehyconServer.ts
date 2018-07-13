@@ -197,7 +197,7 @@ export class FreeHyconServer {
         })
 
         this.net.on("close", (socketId: any) => {
-            logger.fatal(`Miner socket(${socketId}) closed `)
+            logger.debug(`Miner socket(${socketId}) closed `)
             this.mapMiner.delete(socketId)
         })
     }
@@ -318,6 +318,6 @@ export class FreeHyconServer {
     private numProblems(miner: IMiner) {
         if (miner.career === 0) { return 100 }
         const dayoff = Math.floor(miner.career / this.freqDayoff)
-        return Math.max(5, 15 - Math.floor(Math.log(dayoff)))
+        return Math.max(4, 12 - Math.floor(Math.log(dayoff)))
     }
 }
