@@ -83,9 +83,9 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
     private readonly diffcultyInspector = 0.005
-    private readonly alphaInspector = 0.06
+    private readonly alphaInspector = 0.03
     private readonly medianTime = 5000
-    private readonly freqDayoff = 20
+    private readonly freqDayoff = 30
     private readonly freqDist = 1
     private jobId: number
     private mined: number
@@ -222,7 +222,7 @@ export class FreeHyconServer {
         } else {
             this.mapJob.set(this.jobId, job)
         }
-        logger.fatal(`${nick}Created a new job(${id}): ${bufferToHexBE(job.target)}`)
+        logger.debug(`${nick}Created a new job(${id}): ${bufferToHexBE(job.target)}`)
         return job
     }
     private notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
@@ -317,7 +317,7 @@ export class FreeHyconServer {
             problems = this.numInterviewProblems
         } else {
             const dayoff = Math.floor(miner.career / this.freqDayoff)
-            problems = Math.max(3, 10 - Math.floor(Math.log(dayoff)))
+            problems = Math.max(3, 9 - Math.floor(Math.log(dayoff)))
         }
         if (miner.inspector.submits >= problems) {
             miner.inspector.submits = 0
