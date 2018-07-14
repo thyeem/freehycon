@@ -85,7 +85,7 @@ export class FreeHyconServer {
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly medianTime = 5000
-    private readonly freqDayoff = 5
+    private readonly freqDayoff = 20
     private readonly freqDist = 1
     private jobId: number
     private mined: number
@@ -129,6 +129,7 @@ export class FreeHyconServer {
             for (const [key, miner] of this.mapMiner) {
                 if (miner.socket === undefined) { continue }
                 if (miner.status === MinerStatus.Working) {
+                    if (this.checkDayoff(miner)) { continue }
                     this.notifyJob(miner.socket, getRandomIndex(), pubJob)
                     continue
                 }
@@ -170,16 +171,12 @@ export class FreeHyconServer {
                     if (miner.status === MinerStatus.Working) {
                         result = await this.completeWork(jobId, req.params.nonce)
                         if (result) { this.payWages() }
-                    } else { // MinerStatus.Dayoff & MinerStatus.Oninterview
+                    } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (!result) { break }
                         miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
-                        if (miner.inspector.submits >= this.numProblems(miner)) {
-                            miner.inspector.submits = 0
-                            miner.status = MinerStatus.Working
-                            break
-                        }
                         miner.inspector.adjustDifficulty()
+                        if (this.checkWorkingDay(miner)) { break }
                         this.putWorkOnInspector(miner)
                     }
                     deferred.resolve([result])
@@ -282,7 +279,6 @@ export class FreeHyconServer {
                 logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${miner.hashrate.toFixed(1)} H/s`)
             } else {
                 this.stop()
-                this.updateHRInfo()
                 this.mined++
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
@@ -306,26 +302,34 @@ export class FreeHyconServer {
         this.mapMiner.set(socket.id, miner)
         return this.mapMiner.get(socket.id)
     }
+    private checkDayoff(miner: IMiner) {
+        if (miner.career > 0x7FFFFFFF) { miner.career = 0 }
+        miner.career++
+        if (miner.career % this.freqDayoff === 0) {
+            miner.status = MinerStatus.Dayoff
+            return true
+        }
+        return false
+    }
+    private checkWorkingDay(miner: IMiner) {
+        let problems: number
+        if (miner.career === 0) {
+            problems = this.numInterviewProblems
+        } else {
+            const dayoff = Math.floor(miner.career / this.freqDayoff)
+            problems = Math.max(3, 10 - Math.floor(Math.log(dayoff)))
+        }
+        if (miner.inspector.submits >= problems) {
+            miner.inspector.submits = 0
+            miner.status = MinerStatus.Working
+            return true
+        }
+        return false
+    }
     private payWages() {
         if (this.mined % this.freqDist === 0) {
             const banker = new Banker(this.minerServer, this.mapMiner)
             banker.distributeIncome(240)
         }
-    }
-    private updateHRInfo() {
-        for (const [key, miner] of this.mapMiner) {
-            if (miner.status === MinerStatus.Working) {
-                miner.career++
-                if (miner.career % this.freqDayoff === 0) {
-                    miner.status = MinerStatus.Dayoff
-                }
-            }
-        }
-    }
-    private numProblems(miner: IMiner) {
-        if (miner.career === 0) { return this.numInterviewProblems }
-        const dayoff = Math.floor(miner.career / this.freqDayoff)
-        // return Math.max(3, 10 - Math.floor(Math.log(dayoff)))
-        return 5
     }
 }
