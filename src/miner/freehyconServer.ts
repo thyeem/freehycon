@@ -84,7 +84,6 @@ export class FreeHyconServer {
     private readonly numInterviewProblems = 100
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
-    private readonly medianTime = 5000
     private readonly freqDayoff = 30
     private readonly freqDist = 1
     private jobId: number
@@ -295,7 +294,7 @@ export class FreeHyconServer {
             address: "",
             career: 0,
             hashrate: 0,
-            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector, this.medianTime),
+            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector),
             socket,
             status: MinerStatus.NotHired,
         }

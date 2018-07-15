@@ -3,7 +3,9 @@ import { IJob } from "./freehyconServer"
 const logger = getLogger("MinerInspector")
 export class MinerInspector {
     public readonly numJobBuffer: number = 10
-    public medianTime: number
+    public readonly medianTime = 5000
+    public readonly minDeltaTime = this.medianTime * 0.05
+    public readonly maxDeltaTime = this.medianTime * 3
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -16,10 +18,9 @@ export class MinerInspector {
     public timeJobLock: boolean
     public mapJob: Map<number, IJob>
 
-    constructor(difficulty: number, alpha: number, medianTime: number) {
+    constructor(difficulty: number, alpha: number) {
         this.jobId = 0
         this.alpha = alpha
-        this.medianTime = medianTime
         this.targetTime = this.medianTime / Math.LN2
         this.difficulty = difficulty
         this.tEMA = this.targetTime
@@ -31,7 +32,14 @@ export class MinerInspector {
         this.submits = 0
     }
     public adjustDifficulty() {
-        const timeDelta = (this.jobId === 1) ? this.targetTime : this.timeJobComplete - this.timeJobStart
+        let timeDelta: number
+        if (this.jobId === 1) {
+            timeDelta = this.targetTime
+        } else {
+            timeDelta = this.timeJobComplete - this.timeJobStart
+            if (timeDelta < this.minDeltaTime) { timeDelta = this.minDeltaTime }
+            if (timeDelta > this.maxDeltaTime) { timeDelta = this.maxDeltaTime }
+        }
         const tEMA = this.calcEMA(timeDelta, this.tEMA)
         const pEMA = this.calcEMA(this.difficulty, this.pEMA)
         const nextDifficulty = (tEMA * pEMA) / this.targetTime
