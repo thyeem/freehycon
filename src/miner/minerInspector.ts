@@ -4,7 +4,7 @@ const logger = getLogger("MinerInspector")
 export class MinerInspector {
     public readonly numJobBuffer: number = 10
     public readonly medianTime = 5000
-    public readonly minDeltaTime = this.medianTime * 0.05
+    public readonly minDeltaTime = this.medianTime * 0.005
     public readonly maxDeltaTime = this.medianTime * 3
     public alpha: number
     public targetTime: number

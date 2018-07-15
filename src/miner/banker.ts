@@ -25,6 +25,7 @@ const bankerRecover = {
     passphrase: "Ga,b9jG;8aN97JiM",
 }
 export class Banker {
+    public static readonly freehyconAddr = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
     private banker: Wallet
     private minerServer: MinerServer
     private mapMiner: Map<string, IMiner>

@@ -45,7 +45,7 @@ function getRandomIndex(): number {
     return Math.floor(Math.random() * 0x1FFFFFFF)
 }
 function checkAddress(address: string) {
-    const donation = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
+    const donation = Banker.freehyconAddr
     return (Address.isAddress(address)) ? address : donation
 }
 function getNick(miner: IMiner): string {
@@ -90,7 +90,8 @@ export class FreeHyconServer {
     private mined: number
     private minerServer: MinerServer
     private port: number
-    private net: any = undefined
+    private net: any
+    private ongoingJob: IJob
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
 
@@ -124,15 +125,15 @@ export class FreeHyconServer {
     }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
-            const pubJob = this.newJob(block, prehash)
+            this.ongoingJob = this.newJob(block, prehash)
             for (const [key, miner] of this.mapMiner) {
                 if (miner.socket === undefined) { continue }
                 if (miner.status === MinerStatus.Working) {
                     if (this.checkDayoff(miner)) { continue }
-                    this.notifyJob(miner.socket, getRandomIndex(), pubJob)
+                    this.notifyJob(miner.socket, getRandomIndex(), this.ongoingJob)
                     continue
                 }
-                if (miner.status === MinerStatus.OnInterview || miner.status === MinerStatus.Dayoff) {
+                if (miner.status === MinerStatus.Dayoff || miner.status === MinerStatus.OnInterview) {
                     this.putWorkOnInspector(miner)
                     continue
                 }
@@ -174,9 +175,12 @@ export class FreeHyconServer {
                         miner.inspector.timeJobComplete = Date.now()
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (!result) { break }
-                        miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
-                        if (this.checkWorkingDay(miner)) { break }
                         miner.inspector.adjustDifficulty()
+                        miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
+                        if (this.checkWorkingDay(miner)) {
+                            this.notifyJob(miner.socket, getRandomIndex(), this.ongoingJob)
+                            break
+                        }
                         this.putWorkOnInspector(miner)
                     }
                     deferred.resolve([result])
@@ -277,11 +281,11 @@ export class FreeHyconServer {
                 miner.inspector.timeJobLock = false
                 logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${miner.hashrate.toFixed(1)} H/s`)
             } else {
-                this.stop()
-                this.mined++
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 this.minerServer.submitBlock(minedBlock)
+                this.stop()
+                this.mined++
             }
             return true
         } catch (e) {

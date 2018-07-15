@@ -41,13 +41,10 @@ export class MinerServer {
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
     }
     public async submitBlock(block: Block) {
-        this.stop()
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
         }
     }
-    public stop(): void { this.freeHyconServer.stop() }
-
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
         return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }
     }
