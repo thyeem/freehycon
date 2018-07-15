@@ -42,7 +42,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0xFFFF)
+    return Math.floor(Math.random() * 0x1FFFFFFF)
 }
 function checkAddress(address: string) {
     const donation = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
@@ -83,7 +83,7 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
     private readonly diffcultyInspector = 0.005
-    private readonly alphaInspector = 0.03
+    private readonly alphaInspector = 0.06
     private readonly medianTime = 5000
     private readonly freqDayoff = 30
     private readonly freqDist = 1
@@ -162,21 +162,22 @@ export class FreeHyconServer {
                     break
                 case "submit":
                     const jobId = Number(req.params.job_id)
-                    const job = (miner.status === MinerStatus.Working) ? this.mapJob.get(jobId) : miner.inspector.mapJob.get(jobId)
-                    const nick = (miner.status === MinerStatus.Working) ? "" : getNick(miner)
-                    let result = false
+                    const isWorking: boolean = miner.status === MinerStatus.Working
+                    const job = (isWorking) ? this.mapJob.get(jobId) : miner.inspector.mapJob.get(jobId)
+                    const nick = (isWorking) ? "" : getNick(miner)
                     if (job === undefined || job.solved === true) { break }
                     logger.fatal(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
-
-                    if (miner.status === MinerStatus.Working) {
+                    let result = false
+                    if (isWorking) {
                         result = await this.completeWork(jobId, req.params.nonce)
                         if (result) { this.payWages() }
                     } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
+                        miner.inspector.timeJobComplete = Date.now()
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (!result) { break }
                         miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
-                        miner.inspector.adjustDifficulty()
                         if (this.checkWorkingDay(miner)) { break }
+                        miner.inspector.adjustDifficulty()
                         this.putWorkOnInspector(miner)
                     }
                     deferred.resolve([result])
@@ -243,8 +244,8 @@ export class FreeHyconServer {
         const newJob = this.newJob(fakeBlock, genPrehash(), miner)
         this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
         if (!miner.inspector.timeJobLock) {
-            miner.inspector.timeJobStart = Date.now()
             miner.inspector.timeJobLock = true
+            miner.inspector.timeJobStart = Date.now()
         }
     }
     private async completeWork(jobId: number, nonceStr: string, miner?: IMiner): Promise<boolean> {
@@ -272,10 +273,9 @@ export class FreeHyconServer {
             }
             job.solved = true
             if (miner !== undefined) {
-                miner.inspector.timeJobComplete = Date.now()
-                miner.inspector.timeJobLock = false
                 miner.inspector.submits++
                 miner.inspector.stop()
+                miner.inspector.timeJobLock = false
                 logger.error(`${nick}estimated hashrate(${miner.inspector.submits}): ${miner.hashrate.toFixed(1)} H/s`)
             } else {
                 this.stop()
@@ -317,7 +317,7 @@ export class FreeHyconServer {
             problems = this.numInterviewProblems
         } else {
             const dayoff = Math.floor(miner.career / this.freqDayoff)
-            problems = Math.max(3, 9 - Math.floor(Math.log(dayoff)))
+            problems = Math.max(2, 5 - Math.floor(Math.log(dayoff)))
         }
         if (miner.inspector.submits >= problems) {
             miner.inspector.submits = 0
