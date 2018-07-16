@@ -49,7 +49,8 @@ function checkAddress(address: string) {
     return (Address.isAddress(address)) ? address : donation
 }
 function getNick(miner: IMiner): string {
-    return miner.address.slice(0, 8) + ":" + miner.socket.id.slice(0, 6) + "(" + miner.career + ") | "
+    const round = Math.floor(miner.career / FreeHyconServer.freqDayoff)
+    return miner.address.slice(0, 8) + ":" + miner.socket.id.slice(0, 6) + "(" + round + ") | "
 }
 function bufferToHexBE(target: Buffer) {
     const buf = Buffer.from(target.slice(24, 32))
@@ -80,11 +81,12 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 100
+    public static readonly freqDayoff = 40
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
-    private readonly freqDayoff = 30
+    private readonly numJobBuffer = 10
+    private readonly numInterviewProblems = 100
+    private readonly numDayoffProblems = 5
     private readonly freqDist = 1
     private jobId: number
     private mined: number
@@ -308,20 +310,14 @@ export class FreeHyconServer {
     private checkDayoff(miner: IMiner) {
         if (miner.career > 0x7FFFFFFF) { miner.career = 0 }
         miner.career++
-        if (miner.career % this.freqDayoff === 0) {
+        if (miner.career % FreeHyconServer.freqDayoff === 0) {
             miner.status = MinerStatus.Dayoff
             return true
         }
         return false
     }
     private checkWorkingDay(miner: IMiner) {
-        let problems: number
-        if (miner.career === 0) {
-            problems = this.numInterviewProblems
-        } else {
-            const dayoff = Math.floor(miner.career / this.freqDayoff)
-            problems = Math.max(2, 5 - Math.floor(Math.log(dayoff)))
-        }
+        const problems = (miner.career === 0) ? this.numInterviewProblems : this.numDayoffProblems
         if (miner.inspector.submits >= problems) {
             miner.inspector.submits = 0
             miner.status = MinerStatus.Working
