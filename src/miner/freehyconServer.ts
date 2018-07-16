@@ -9,12 +9,13 @@ import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
+import { PoolData } from "./poolData"
 
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
 const logger = getLogger("FreeHyconServer")
 
-enum MinerStatus {
+export enum MinerStatus {
     NotHired = 0,
     OnInterview = 1,
     Dayoff = 2,
@@ -106,24 +107,7 @@ export class FreeHyconServer {
         this.mapMiner = new Map<string, IMiner>()
         this.jobId = 0
         this.mined = 0
-        this.initialize()
-        setInterval(() => this.dumpStatus(), 10000)
-    }
-    public dumpStatus() {
-        let totalHashrate = 0
-        let workerHash = 0
-        let worker = 0
-        for (const [key, miner] of this.mapMiner) {
-            totalHashrate += miner.hashrate
-            if (miner.status === MinerStatus.Working) {
-                workerHash += miner.hashrate
-                worker++
-            }
-        }
-        logger.warn(`${this.mined} blocks mined | total(${this.mapMiner.size}): ${totalHashrate.toFixed(1)} H/s | working(${worker}): ${workerHash.toFixed(1)} H/s`)
-    }
-    public stop() {
-        for (const [jobId, job] of this.mapJob) { job.solved = true }
+        this.init()
     }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
@@ -144,7 +128,14 @@ export class FreeHyconServer {
             logger.error(`putWork failed: ${e}`)
         }
     }
-    private initialize() {
+    private dumpPoolData() {
+        const poolData = new PoolData(this.mapMiner)
+        poolData.release(this.mined)
+        setTimeout(() => {
+            this.dumpPoolData()
+        }, 10000)
+    }
+    private init() {
         this.net.on("mining", async (req: any, deferred: any, socket: any) => {
             let miner = this.mapMiner.get(socket.id)
             if (miner === undefined) { miner = this.welcomeNewMiner(socket) }
@@ -205,6 +196,7 @@ export class FreeHyconServer {
                 this.mapMiner.delete(socketId)
             }
         })
+        this.dumpPoolData()
     }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
@@ -293,6 +285,9 @@ export class FreeHyconServer {
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
         }
+    }
+    private stop() {
+        for (const [jobId, job] of this.mapJob) { job.solved = true }
     }
     private welcomeNewMiner(socket: any): IMiner {
         logger.warn(`New miner socket(${socket.id}) connected`)
