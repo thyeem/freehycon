@@ -14,10 +14,10 @@ interface IPoolMiner {
 }
 export class PoolData {
     private readonly outFile = "freehycon.json"
-    private minerMap: Map<string, IMiner>
+    private minerInfo: IMiner[]
     private walletMap: Map<string, IPoolMiner>
-    constructor(minerMap: Map<string, IMiner>) {
-        this.minerMap = minerMap
+    constructor(minerInfo: IMiner[]) {
+        this.minerInfo = minerInfo
         this.walletMap = new Map<string, IPoolMiner>()
     }
     public async release(mined: number) {
@@ -25,8 +25,8 @@ export class PoolData {
             let poolHashrate = 0
             let workerHash = 0
             let worker = 0
-            const minersCount = this.minerMap.size
-            for (const [key, miner] of this.minerMap) {
+            const minersCount = this.minerInfo.length
+            for (const miner of this.minerInfo) {
                 poolHashrate += miner.hashrate
                 if (miner.status === MinerStatus.Working) {
                     workerHash += miner.hashrate

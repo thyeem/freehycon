@@ -82,7 +82,7 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 40
+    public static readonly freqDayoff = 60
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
@@ -129,7 +129,7 @@ export class FreeHyconServer {
         }
     }
     private dumpPoolData() {
-        const poolData = new PoolData(this.mapMiner)
+        const poolData = new PoolData(Array.from(this.mapMiner.values()))
         poolData.release(this.mined)
         setTimeout(() => {
             this.dumpPoolData()

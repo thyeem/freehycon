@@ -16,4 +16,5 @@ logs/
 node_modules/
 wallet/
 worldstate/
+freehycon.json
 
