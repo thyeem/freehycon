@@ -1,11 +1,16 @@
 import { getLogger } from "log4js"
 import { IJob } from "./freehyconServer"
 const logger = getLogger("MinerInspector")
+interface IJobTimer {
+    start: number
+    end: number
+    lock: boolean
+}
 export class MinerInspector {
     public readonly numJobBuffer: number = 10
     public readonly medianTime = 5000
     public readonly minDeltaTime = this.medianTime * 0.005
-    public readonly maxDeltaTime = this.medianTime * 3
+    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 3
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -13,9 +18,7 @@ export class MinerInspector {
     public difficulty: number
     public jobId: number
     public submits: number
-    public timeJobStart: number
-    public timeJobComplete: number
-    public timeJobLock: boolean
+    public jobTimer: IJobTimer
     public mapJob: Map<number, IJob>
 
     constructor(difficulty: number, alpha: number) {
@@ -25,9 +28,7 @@ export class MinerInspector {
         this.difficulty = difficulty
         this.tEMA = this.targetTime
         this.pEMA = this.difficulty
-        this.timeJobLock = false
-        this.timeJobStart = 0
-        this.timeJobComplete = 0
+        this.jobTimer = { start: 0, end: 0, lock: false }
         this.mapJob = new Map<number, IJob>()
         this.submits = 0
     }
@@ -36,7 +37,7 @@ export class MinerInspector {
         if (this.jobId === 1) {
             timeDelta = this.targetTime
         } else {
-            timeDelta = this.timeJobComplete - this.timeJobStart
+            timeDelta = this.jobTimer.end - this.jobTimer.start
             if (timeDelta < this.minDeltaTime) { timeDelta = this.minDeltaTime }
             if (timeDelta > this.maxDeltaTime) { timeDelta = this.maxDeltaTime }
         }

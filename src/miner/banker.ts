@@ -25,13 +25,14 @@ const bankerRecover = {
     passphrase: "Ga,b9jG;8aN97JiM",
 }
 export class Banker {
-    public static readonly freehyconAddr = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
+    public static readonly freeHyconAddr = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
+    public static readonly freeMinerAddr = "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr"
     private banker: Wallet
     private minerServer: MinerServer
     private mapMiner: Map<string, IMiner>
     private readonly poolFee: number = 0.029
     private readonly txFee: number = 0.000000001
-    private readonly cofounder: string[] = ["H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ", "H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C"]
+    private readonly cofounder = ["H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C", "H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ"]
 
     constructor(minerServer: MinerServer, mapMiner: Map<string, IMiner>) {
         this.minerServer = minerServer
