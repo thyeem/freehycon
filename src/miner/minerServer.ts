@@ -43,6 +43,7 @@ export class MinerServer {
     public async submitBlock(block: Block) {
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
+            this.freeHyconServer.stop()
         }
     }
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {

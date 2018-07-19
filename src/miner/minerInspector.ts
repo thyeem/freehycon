@@ -9,8 +9,8 @@ interface IJobTimer {
 export class MinerInspector {
     public readonly numJobBuffer: number = 10
     public readonly medianTime = 5000
-    public readonly minDeltaTime = this.medianTime * 0.005
-    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 3
+    public readonly minDeltaTime = this.medianTime * 0.01
+    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 2
     public alpha: number
     public targetTime: number
     public tEMA: number

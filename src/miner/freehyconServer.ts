@@ -83,12 +83,12 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 20
+    public static readonly freqDayoff = 40
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
-    private readonly numDayoffProblems = 2
+    private readonly numDayoffProblems = 3
     private readonly freqDist = 1
     private jobId: number
     private mined: number
@@ -131,6 +131,9 @@ export class FreeHyconServer {
         } catch (e) {
             logger.error(`putWork failed: ${e}`)
         }
+    }
+    public stop() {
+        for (const [jobId, job] of this.mapJob) { job.solved = true }
     }
     private dumpPoolData() {
         const poolData = new PoolData(Array.from(this.mapMiner.values()))
@@ -282,16 +285,13 @@ export class FreeHyconServer {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 this.minerServer.submitBlock(minedBlock)
-                this.stop()
                 this.mined++
+                logger.error(`Solved the problem.`)
             }
             return true
         } catch (e) {
             throw new Error(`Fail to submit nonce: ${e}`)
         }
-    }
-    private stop() {
-        for (const [jobId, job] of this.mapJob) { job.solved = true }
     }
     private welcomeNewMiner(socket: any): IMiner {
         logger.warn(`New miner socket(${socket.id}) connected`)
