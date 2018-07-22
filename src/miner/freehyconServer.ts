@@ -43,7 +43,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0x1FFFFFFF)
+    return Math.floor(Math.random() * 0xFFFF)
 }
 function checkAddress(address: string) {
     const isAddress = Address.isAddress(address)
@@ -230,7 +230,7 @@ export class FreeHyconServer {
         logger.debug(`${nick}Created a new job(${id}): ${bufferToHexBE(job.target)}`)
         return job
     }
-    private notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
+    private async notifyJob(socket: any, index: number, job: IJob, miner?: IMiner) {
         const nick = (miner !== undefined) ? getNick(miner) : ""
         if (socket === undefined) {
             logger.error(`${nick}undefined of the stratum socket:`)
@@ -244,14 +244,15 @@ export class FreeHyconServer {
             },
         )
     }
-    private putWorkOnInspector(miner: IMiner) {
+    private async putWorkOnInspector(miner: IMiner) {
         const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+        await this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
         if (!miner.inspector.jobTimer.lock) {
             miner.inspector.jobTimer.lock = true
             miner.inspector.jobTimer.start = Date.now()
         }
     }
+
     private async completeWork(jobId: number, nonceStr: string, miner?: IMiner): Promise<boolean> {
         try {
             const job = (miner !== undefined) ? miner.inspector.mapJob.get(jobId) : this.mapJob.get(jobId)
@@ -324,7 +325,7 @@ export class FreeHyconServer {
         }
         return false
     }
-    private payWages() {
+    private async payWages() {
         if (this.mined % this.freqDist === 0) {
             const banker = new Banker(this.minerServer, this.mapMiner)
             banker.distributeIncome(240)

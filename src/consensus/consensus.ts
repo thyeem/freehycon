@@ -250,7 +250,8 @@ export class Consensus extends EventEmitter implements IConsensus {
     }
     private async put(header: BlockHeader, block?: Block): Promise<IStatusChange> {
         if (header.timeStamp > Date.now() + TIMESTAMP_TOLERANCE) {
-            await this.futureBlockQueue.waitUntil(header.timeStamp - TIMESTAMP_TOLERANCE)
+            // await this.futureBlockQueue.waitUntil(header.timeStamp - TIMESTAMP_TOLERANCE)
+            logger.error(`FRAUD block: miner(${header.miner.toString()}) prevHash(${header.previousHash[0].toString()})`)
         }
 
         if (header.merkleRoot.equals(Hash.emptyHash)) {
