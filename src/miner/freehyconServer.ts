@@ -88,7 +88,7 @@ export class FreeHyconServer {
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
-    private readonly numDayoffProblems = 3
+    private readonly numDayoffProblems = 4
     private readonly freqDist = 1
     private jobId: number
     private mined: number

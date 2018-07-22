@@ -130,8 +130,8 @@ export class Sync {
             logger.info(`Receiving Headers from ${this.peer.getInfo()}`)
             await this.getHeaders(startHeaderHeight)
         } else if (remoteHeaderWork < localHeaderWork) {
-            // logger.info(`Sending Headers to ${this.peer.getInfo()}`)
-            // await this.putHeaders(startHeaderHeight)
+            logger.info(`Sending Headers to ${this.peer.getInfo()}`)
+            await this.putHeaders(startHeaderHeight)
         }
         return startHeaderHeight
     }
@@ -152,8 +152,8 @@ export class Sync {
             logger.info(`Receiving Blocks from ${this.peer.getInfo()}`)
             await this.getBlocks(startBlockHeight)
         } else if (remoteBlockWork < localBlockWork) {
-            // logger.info(`Sending Blocks to ${this.peer.getInfo()}`)
-            // await this.putBlocks(startBlockHeight)
+            logger.info(`Sending Blocks to ${this.peer.getInfo()}`)
+            await this.putBlocks(startBlockHeight)
         }
         return startBlockHeight
     }
@@ -175,8 +175,8 @@ export class Sync {
                 return await this.getTxBlocks(blockHashes)
             }
         } else if (remoteBlockWork < localBlockWork) {
-            // logger.info(`Sending transactions to ${this.peer.getInfo()}`)
-            // return await this.putTxBlocks(startHeaderHeight)
+            logger.info(`Sending transactions to ${this.peer.getInfo()}`)
+            return await this.putTxBlocks(startHeaderHeight)
         }
     }
 
