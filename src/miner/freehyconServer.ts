@@ -95,7 +95,6 @@ export class FreeHyconServer {
     private minerServer: MinerServer
     private port: number
     private net: any
-    private ongoingJob: IJob
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
 
@@ -112,7 +111,7 @@ export class FreeHyconServer {
     }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
-            this.ongoingJob = this.newJob(block, prehash)
+            const newJob = this.newJob(block, prehash)
             for (const [key, miner] of this.mapMiner) {
                 if (miner.socket === undefined) { continue }
                 if (miner.status === MinerStatus.Working) {
@@ -120,7 +119,7 @@ export class FreeHyconServer {
                         this.putWorkOnInspector(miner)
                         continue
                     }
-                    this.notifyJob(miner.socket, getRandomIndex(), this.ongoingJob)
+                    this.notifyJob(miner.socket, getRandomIndex(), newJob)
                     continue
                 }
                 if (miner.status === MinerStatus.Dayoff || miner.status === MinerStatus.OnInterview) {
@@ -178,7 +177,8 @@ export class FreeHyconServer {
                         miner.inspector.adjustDifficulty()
                         miner.hashrate = 1.0 / (miner.inspector.difficulty * 0.001 * miner.inspector.targetTime)
                         if (this.checkWorkingDay(miner)) {
-                            this.notifyJob(miner.socket, getRandomIndex(), this.ongoingJob)
+                            const resumeJob = this.mapJob.get(this.jobId)
+                            this.notifyJob(miner.socket, getRandomIndex(), resumeJob)
                             break
                         }
                         this.putWorkOnInspector(miner)
