@@ -4,6 +4,6 @@
     "dataRoot": "./data",
     "dataWallet": "./wallet",
     "minerAddress": "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP",
-    "txPoolMaxAddresses": 50000,
-    "txPoolMaxTxsPerAddress": 500
+    "txPoolMaxAddresses": 36000,
+    "txPoolMaxTxsPerAddress": 64
 }

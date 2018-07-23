@@ -249,10 +249,9 @@ export class Consensus extends EventEmitter implements IConsensus {
         return this.db.getBlockAtHeight(height)
     }
     private async put(header: BlockHeader, block?: Block): Promise<IStatusChange> {
-        // if (header.timeStamp > Date.now() + TIMESTAMP_TOLERANCE) {
-        // logger.error(`FRAUD block: miner(${header.miner.toString()}) prevHash(${header.previousHash[0].toString()})`)
-        // await this.futureBlockQueue.waitUntil(header.timeStamp - TIMESTAMP_TOLERANCE)
-        // }
+        if (header.timeStamp > Date.now() + TIMESTAMP_TOLERANCE) {
+            await this.futureBlockQueue.waitUntil(header.timeStamp - TIMESTAMP_TOLERANCE)
+        }
 
         if (header.merkleRoot.equals(Hash.emptyHash)) {
             // Block contains no transactions, create a new empty block
@@ -421,7 +420,7 @@ export class Consensus extends EventEmitter implements IConsensus {
                 removeTxs.push(tx)
             }
             pushHeight += 1
-            if (this.txdb) { this.txdb.putTxs(hash, block.header.timeStamp, block.txs) }
+            if (this.txdb) { await this.txdb.putTxs(hash, block.header.timeStamp, block.txs) }
             this.emit("block", block)
         }
 

@@ -236,6 +236,7 @@ export class FreeHyconServer {
             logger.error(`${nick}undefined of the stratum socket:`)
             return
         }
+        if (job.prehashHex === undefined) { return }
         socket.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
             .then(() => {
                 logger.debug(`${nick}Put job(${job.id}): ${socket.id}`)

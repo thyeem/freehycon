@@ -37,7 +37,7 @@ export class Verify {
         }
 
         const height = previousDBBlock.height + 1
-        const totalWork = previousDBBlock.totalWork + Math.ceil(((1 / previousDBBlock.nextDifficulty) / 1000000))
+        const totalWork = previousDBBlock.totalWork + (1 / previousDBBlock.nextDifficulty)
         result.dbBlock = new DBBlock({ header, height, tEMA, pEMA, nextDifficulty, totalWork })
         result.status = BlockStatus.Header
         return

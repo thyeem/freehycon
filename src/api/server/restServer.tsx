@@ -8,6 +8,7 @@ import { PrivateKey } from "../../common/privateKey"
 import { Tx } from "../../common/tx"
 import { SignedTx } from "../../common/txSigned"
 import { DBTx } from "../../consensus/database/dbtx"
+import { DifficultyAdjuster } from "../../consensus/difficultyAdjuster"
 import { IConsensus } from "../../consensus/iconsensus"
 import { setMiner } from "../../main"
 import { globalOptions } from "../../main"
@@ -870,7 +871,7 @@ export class RestServer implements IRest {
         const currentDiff = this.consensus.getCurrentDiff()
         let networkHashRate = 0
         if (currentDiff !== 0) {
-            networkHashRate = 1 / (currentDiff * 30 / Math.LN2)
+            networkHashRate = 1 / (currentDiff * DifficultyAdjuster.getTargetTime())
         }
         return { cpuHashRate: minerInfo.hashRate, networkHashRate: Math.round(networkHashRate), currentMinerAddress: minerInfo.address, cpuCount: minerInfo.cpuCount }
     }

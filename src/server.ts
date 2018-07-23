@@ -1,8 +1,10 @@
 import { getLogger } from "log4js"
+import { hyconfromString } from "./api/client/stringUtil"
 import { HttpServer } from "./api/server/server"
 import { ITxPool } from "./common/itxPool"
 import { TxPool } from "./common/txPool"
 import { Consensus } from "./consensus/consensus"
+import { Database } from "./consensus/database/database"
 import { WorldState } from "./consensus/database/worldState"
 import { IConsensus } from "./consensus/iconsensus"
 import { Sync } from "./consensus/sync"
@@ -17,7 +19,6 @@ const logger = getLogger("Server")
 
 export class Server {
     public static subsid = 0
-
     public readonly consensus: IConsensus
     public readonly network: INetwork
     public readonly miner: MinerServer
@@ -35,17 +36,17 @@ export class Server {
         this.consensus = new Consensus(this.txPool, this.worldState, prefix + "blockdb" + postfix, prefix + "rawblock" + postfix, prefix + "txDB" + postfix, prefix + "minedDB" + postfix)
         this.network = new RabbitNetwork(this.txPool, this.consensus, globalOptions.port, prefix + "peerdb" + postfix, globalOptions.networkid)
         this.miner = new MinerServer(this.txPool, this.worldState, this.consensus, this.network, globalOptions.cpuMiners, globalOptions.str_port)
-        if (globalOptions.api) { this.rest = new RestManager(this) }
+        // this.rest = new RestManager(this)
     }
     public async run() {
         await this.consensus.init()
         logger.info("Starting server...")
-        if (globalOptions.api) {
-            logger.debug(`API flag is ${globalOptions.api}`)
-            logger.info("Test API")
-            logger.info(`API Port ${globalOptions.api_port}`)
-            this.httpServer = new HttpServer(this.rest, globalOptions.api_port, globalOptions)
-        }
+        logger.debug(`API flag is ${globalOptions.api}`)
+        // if (globalOptions.api !== false) {
+        //     logger.info("Test API")
+        //     logger.info(`API Port ${globalOptions.api_port}`)
+        //     this.httpServer = new HttpServer(this.rest, globalOptions.api_port, globalOptions)
+        // }
         await this.network.start()
         await Wallet.walletInit()
         if (globalOptions.peer) {

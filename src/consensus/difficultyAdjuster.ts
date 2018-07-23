@@ -8,9 +8,11 @@ export class DifficultyAdjuster {
     public static adjustDifficulty(previousDBBlock: DBBlock, timeStamp: number) {
         // Consensus Critical
         const timeDelta = previousDBBlock.height > 0 ? timeStamp - previousDBBlock.header.timeStamp : DifficultyAdjuster.targetTime
+
         const tEMA = DifficultyAdjuster.calcEMA(timeDelta, previousDBBlock.tEMA)
         const pEMA = DifficultyAdjuster.calcEMA(previousDBBlock.nextDifficulty, previousDBBlock.pEMA)
         const nextDifficulty = (tEMA * pEMA) / DifficultyAdjuster.targetTime
+
         return { nextDifficulty, tEMA, pEMA }
     }
 
@@ -45,6 +47,7 @@ export class DifficultyAdjuster {
         if (!(hash instanceof Hash) && hash.length !== 32) {
             throw new Error(`Expected 32 byte hash, got ${hash.length} bytes`)
         }
+
         for (let i = 31; i >= 0; i--) {
             if (hash[i] < target[i]) {
                 return true

@@ -58,7 +58,7 @@ export class HttpServer {
             if (options.nonLocal) {
                 this.app.listen(port, () => { opn(`http://localhost:${port}`) })
             } else {
-                this.app.listen(port, "localhost")
+                this.app.listen(port, "localhost", () => { opn(`http://localhost:${port}`) })
             }
         } catch (error) {
             logger.error(error)
