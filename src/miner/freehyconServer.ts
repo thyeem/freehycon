@@ -5,6 +5,7 @@ import { Address } from "../common/address"
 import { Block } from "../common/block"
 import { BlockHeader } from "../common/blockHeader"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
+import { BlockStatus } from "../consensus/sync"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { MinerInspector } from "./minerInspector"
@@ -89,7 +90,6 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
     private readonly numDayoffProblems = 4
-    private readonly freqDist = 1
     private jobId: number
     private mined: number
     private minerServer: MinerServer
@@ -97,6 +97,7 @@ export class FreeHyconServer {
     private net: any
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
+    private payment: number
 
     constructor(minerServer: MinerServer, port: number = 9081) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
@@ -107,6 +108,7 @@ export class FreeHyconServer {
         this.mapMiner = new Map<string, IMiner>()
         this.jobId = 0
         this.mined = 0
+        this.payment = 0
         this.init()
     }
     public putWork(block: Block, prehash: Uint8Array) {
@@ -140,6 +142,7 @@ export class FreeHyconServer {
         setTimeout(() => {
             this.dumpPoolData()
         }, 10000)
+        if (this.payment > 0) { logger.warn(`caution: ${this.payment} payment(s) remain.`) }
     }
     private init() {
         this.net.on("mining", async (req: any, deferred: any, socket: any) => {
@@ -169,7 +172,6 @@ export class FreeHyconServer {
                     let result = false
                     if (isWorking) {
                         result = await this.completeWork(jobId, req.params.nonce)
-                        if (result) { this.payWages() }
                     } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
                         miner.inspector.jobTimer.end = Date.now()
                         result = await this.completeWork(jobId, req.params.nonce, miner)
@@ -288,6 +290,7 @@ export class FreeHyconServer {
                 minedBlock.header.nonce = nonce
                 this.minerServer.submitBlock(minedBlock)
                 this.mined++
+                this.payWages(new Hash(minedBlock.header))
                 logger.error(`Solved the problem.`)
             }
             return true
@@ -326,10 +329,16 @@ export class FreeHyconServer {
         }
         return false
     }
-    private async payWages() {
-        if (this.mined % this.freqDist === 0) {
-            const banker = new Banker(this.minerServer, this.mapMiner)
-            banker.distributeIncome(240)
-        }
+    private async payWages(hash: Hash) {
+        this.payment++
+        const base = new Map(this.mapMiner)
+        setTimeout(async () => {
+            const status = await this.minerServer.consensus.getBlockStatus(hash)
+            if (status === BlockStatus.MainChain) {
+                const banker = new Banker(this.minerServer, base)
+                banker.distributeIncome(240)
+            }
+            this.payment--
+        }, 360000)
     }
 }
