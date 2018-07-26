@@ -4,7 +4,7 @@ import { Address } from "../common/address"
 import { SignedTx } from "../common/txSigned"
 import { Hash } from "../util/hash"
 import { Wallet } from "../wallet/wallet"
-import { IMiner } from "./freehyconServer"
+import { IMinerReward } from "./dataCenter"
 import { MinerServer } from "./minerServer"
 
 interface ISendTx {
@@ -27,40 +27,44 @@ const bankerRecover = {
 export class Banker {
     public static readonly freeHyconAddr = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
     public static readonly freeMinerAddr = "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr"
+    private carryover: number
     private banker: Wallet
     private minerServer: MinerServer
-    private mapMiner: Map<string, IMiner>
-    private readonly poolFee: number = 0.029
     private readonly txFee: number = 0.000000001
     private readonly cofounder = ["H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C", "H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ"]
 
-    constructor(minerServer: MinerServer, mapMiner: Map<string, IMiner>) {
+    constructor(minerServer: MinerServer) {
         this.minerServer = minerServer
-        this.mapMiner = mapMiner
+        this.carryover = 0
         this.banker = Wallet.generate(bankerRecover)
     }
-    public async distributeIncome(income: number) {
+    public async distributeIncome(income: number, hash: string, height: number, rewardBase: Map<string, IMinerReward>, poolHashshare: number) {
         try {
-            let hashrateTotal: number = 0
-            const net = income * (1.0 - this.poolFee) - this.txFee * (this.mapMiner.size + this.cofounder.length)
-            logger.error(`distribution: ${net.toFixed(9)} HYC | fee(${(this.poolFee * 100).toFixed(1)}%): ${(income * this.poolFee).toFixed(9)} HYC`)
-            for (const [key, miner] of this.mapMiner) {
-                hashrateTotal += miner.hashrate
-            }
-
-            for (const [key, miner] of this.mapMiner) {
-                const amount = net * miner.hashrate / hashrateTotal - this.txFee
+            logger.error(`distribution (block #${height}: ${hash}) started`)
+            income += this.carryover
+            let sumFee = 0
+            for (const [address, minerG] of rewardBase) {
+                const amount = income * minerG.reward / poolHashshare - this.txFee
                 if (amount <= 0) { continue }
-                const tx = await this.makeTx(miner.address, amount, this.txFee)
+                const fee = income * minerG.fee / poolHashshare
+                sumFee += fee
+                const tx = await this.makeTx(address, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
             for (const to of this.cofounder) {
-                const amount = (income - net) * 0.5 - this.txFee
+                const amount = sumFee * 0.5 - this.txFee
                 if (amount <= 0) { continue }
                 const tx = await this.makeTx(to, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
+            }
+            if (rewardBase.size < 1) {
+                this.carryover += 240
+                logger.error(`carryover: ${this.carryover} HYC`)
+            } else {
+                this.carryover = 0
+                logger.error(`sent: ${(income - sumFee).toFixed(9)} HYC | sumFee: ${sumFee.toFixed(9)} HYC`)
             }
         } catch (e) {
             logger.fatal(`income distribution failed: ${e}`)
@@ -77,7 +81,7 @@ export class Banker {
         }
         const address = new Address(tx.address)
         const signedTx = this.banker.send(address, hyconfromString(tx.amount.toFixed(9)), tx.nonce, hyconfromString(tx.minerFee.toFixed(9)))
-        logger.warn(`sent ${tx.amount.toFixed(9)} HYC to ${tx.address} (${new Hash(signedTx).toString()})`)
+        logger.warn(`sending ${tx.amount.toFixed(9)} HYC to ${tx.address} (${new Hash(signedTx).toString()})`)
         return signedTx
     }
     public async nextNonce(wallet: Wallet): Promise<number> {

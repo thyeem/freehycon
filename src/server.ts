@@ -1,6 +1,7 @@
 import { getLogger } from "log4js"
 import { hyconfromString } from "./api/client/stringUtil"
 import { HttpServer } from "./api/server/server"
+import { Address } from "./common/address"
 import { ITxPool } from "./common/itxPool"
 import { TxPool } from "./common/txPool"
 import { Consensus } from "./consensus/consensus"
@@ -40,8 +41,12 @@ export class Server {
     }
     public async run() {
         await this.consensus.init()
-        logger.info("Starting server...")
-        logger.debug(`API flag is ${globalOptions.api}`)
+        const address = new Address("H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP")
+        const blocks = await this.consensus.getMinedBlocks(address, 20)
+        logger.warn(blocks.length)
+        process.exit(0)
+        // logger.info("Starting server...")
+        // logger.debug(`API flag is ${globalOptions.api}`)
         // if (globalOptions.api !== false) {
         //     logger.info("Test API")
         //     logger.info(`API Port ${globalOptions.api_port}`)
