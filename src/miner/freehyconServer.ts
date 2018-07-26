@@ -93,10 +93,11 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     public static readonly freqDayoff = 40
+    public static readonly deferreTime = 10000
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 100
+    private readonly numInterviewProblems = 10
     private readonly numDayoffProblems = 4
     private readonly deferredTime = 360000
     private jobId: number
