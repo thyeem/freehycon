@@ -12,6 +12,7 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { FreeHyconServer } from "./freehyconServer"
+import {MongoServer} from "./mongoServer"
 const logger = getLogger("Miner")
 
 export class MinerServer {
@@ -29,6 +30,7 @@ export class MinerServer {
     public consensus: IConsensus
     public network: INetwork
     private freeHyconServer: FreeHyconServer
+    private mongoServer: MongoServer
     private intervalId: NodeJS.Timer
     private worldState: WorldState
 
@@ -38,6 +40,7 @@ export class MinerServer {
         this.consensus = consensus
         this.network = network
         this.freeHyconServer = new FreeHyconServer(this, stratumPort)
+        this.mongoServer = new MongoServer(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
     }
     public async submitBlock(block: Block) {
@@ -93,5 +96,6 @@ export class MinerServer {
 
         const prehash = block.header.preHash()
         this.freeHyconServer.putWork(block, prehash)
+        this.mongoServer.putWork(block, prehash)
     }
 }
