@@ -67,7 +67,19 @@ export class MongoServer {
     // write to db
     public async  putWork(block: Block, prehash: Uint8Array) {
         const collection=this.db.collection(`Works`)
-        let putWorkJson= {block: JSON.stringify(block), prehash: JSON.stringify(prehash)}
-        collection.insertOne( putWorkJson)
+
+        let info = {block:JSON.stringify(block), prehash:JSON.stringify(prehash)}
+        let putWorkData= {block: block, prehash: prehash, info: info, time: new Date()}
+        collection.insertOne( putWorkData)
+
+        /*
+        setTimeout( async ()=> {
+            var result = await collection.deleteMany( {prehash: prehash})
+            console.log(result)
+        }, 50000)*/
+    }
+
+    public async submitBlock(block:Block) {
+        console.log(`Submit Block`)
     }
 }
