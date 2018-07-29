@@ -70,13 +70,10 @@ export class MongoServer {
 
         let info = {block:JSON.stringify(block), prehash:JSON.stringify(prehash)}
         let putWorkData= {block: block, prehash: prehash, info: info, time: new Date()}
-        collection.insertOne( putWorkData)
+        await collection.remove({})
+        await collection.insertOne( putWorkData)
 
-        /*
-        setTimeout( async ()=> {
-            var result = await collection.deleteMany( {prehash: prehash})
-            console.log(result)
-        }, 50000)*/
+        
     }
 
     public async submitBlock(block:Block) {
