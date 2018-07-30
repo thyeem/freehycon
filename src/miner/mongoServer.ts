@@ -114,4 +114,13 @@ export class MongoServer {
         }
         return returnRows
     }
+
+    public async addMinedBlock(block: Block) {
+        console.log(`Add Mined Block`)
+        const collection = this.db.collection(`MinedBlocks`)
+        let mined = { block: block.encode(), time: new Date(), info: JSON.stringify(block) }
+        await collection.insertOne(mined)
+    }
+
+
 }
