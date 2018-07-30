@@ -25,11 +25,11 @@ export class DifficultyAdjuster {
     public static getTarget(p: number, length: number = 32) {
         // Consensus Critical
         if (p > 1) {
-            logger.warn(`Difficulty(${p.toExponential()}) is too low, anything is possible.`)
+            logger.warn(`Difficulty(${p.toExponential()}) is too low, anything is possible. (　＾∇＾)`)
             p = 1
         }
         if (p < Math.pow(0x100, -length)) {
-            logger.warn(`Difficulty(${p.toExponential()}) is too high, give up now.`)
+            logger.warn(`Difficulty(${p.toExponential()}) is too high, give up now. (╯°□°）╯︵ ┻━┻`)
             p = Math.pow(0x100, -length)
         }
         const target = Buffer.alloc(length)

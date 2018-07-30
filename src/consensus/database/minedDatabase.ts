@@ -109,7 +109,7 @@ export class MinedDatabase {
             this.db.all(query, params, async (err, rows) => {
                 for (const row of rows) {
                     const status = await this.consensus.getBlockStatus(row.blockhash)
-                    if (status === BlockStatus.MainChain || status === BlockStatus.Block) {
+                    if (status === BlockStatus.MainChain) {
                         result.push(new DBMined(row.blockhash, row.feeReward, row.blocktime, row.miner))
                     }
                     if (result.length === count) { break }

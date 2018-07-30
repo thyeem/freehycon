@@ -96,9 +96,9 @@ export class FreeHyconServer {
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 10
+    private readonly numInterviewProblems = 100
     private readonly numDayoffProblems = 4
-    private readonly deferredTime = 10000
+    private readonly deferredTime = 360000
     private jobId: number
     private port: number
     private minerServer: MinerServer

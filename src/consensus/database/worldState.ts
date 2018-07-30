@@ -88,6 +88,9 @@ export class WorldState {
         }
     }
     public async validateTx(stateRoot: Hash, tx: SignedTx): Promise<TxValidity> {
+        if (tx.from.equals(tx.to)) {
+            return TxValidity.Invalid
+        }
         const fromAccount = await this.getAccount(stateRoot, tx.from)
         if (fromAccount === undefined || fromAccount.nonce >= tx.nonce) {
             return TxValidity.Invalid
@@ -246,7 +249,7 @@ export class WorldState {
             const from = await this.getModifiedAccount(tx.from, previousState, mapIndex, changes)
 
             if (tx.nonce < (from.account.nonce + 1)) {
-                logger.info(`Tx ${new Hash(tx)} Rejected: TxNonce=${tx.nonce} ${tx.from} Nonce=${from.account.nonce}`)
+                logger.debug(`Tx ${new Hash(tx)} Rejected: TxNonce=${tx.nonce} ${tx.from} Nonce=${from.account.nonce}`)
                 return TxValidity.Invalid
             }
 
@@ -256,7 +259,7 @@ export class WorldState {
 
             const total = tx.amount.add(tx.fee)
             if (from.account.balance.lessThan(total)) {
-                logger.info(`Tx ${new Hash(tx)} Rejected: The balance (${hycontoString(from.account.balance)}) is insufficient (${hycontoString(tx.amount)} + ${hycontoString(tx.fee)} = ${hycontoString(total)})`)
+                logger.debug(`Tx ${new Hash(tx)} Rejected: The balance (${hycontoString(from.account.balance)}) is insufficient (${hycontoString(tx.amount)} + ${hycontoString(tx.fee)} = ${hycontoString(total)})`)
                 return TxValidity.Invalid
             }
 

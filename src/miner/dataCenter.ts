@@ -147,7 +147,7 @@ export class DataCenter {
     public getPoolMiners(minersCount: number) {
         const minerGroups: IMinerGroup[] = Array.from(this.minerG.values())
         minerGroups.sort((a, b) => {
-            return b.hashrate - a.hashrate
+            return b.hashshare - a.hashshare
         })
         const poolMiners: IPoolMiner = {
             minerGroups,

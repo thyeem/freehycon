@@ -18,3 +18,5 @@ minedDB*
 wallet/
 worldstate*
 *.png
+miners.json
+blocks.json
