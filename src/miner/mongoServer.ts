@@ -1,4 +1,4 @@
-import {MongoClient, Mongodb} from "mongodb"
+import {MongoClient, Mongodb, Binary} from "mongodb"
 import * as assert from "assert"
 import {equal} from "assert"
 import delay from "delay"
@@ -67,16 +67,32 @@ export class MongoServer {
     // write to db
     public async  putWork(block: Block, prehash: Uint8Array) {
         const collection=this.db.collection(`Works`)
-
-        let info = {block:JSON.stringify(block), prehash:JSON.stringify(prehash)}
-        let putWorkData= {block: block, prehash: prehash, info: info, time: new Date()}
-        await collection.remove({})
+        
+        let putWorkData= {block: block.encode(), prehash: Buffer.from(prehash), time: new Date()}
+         await collection.remove({})
         await collection.insertOne( putWorkData)
 
         
     }
 
+    public async pollingPutWork() : Promise<any[]>
+    {
+        const collection=this.db.collection(`Works`)
+        var rows:any [] = await  collection.find({}).limit(this.maxCountPerQuery).toArray()
+        var returnRows: any[]= []
+        for (let one of rows) {
+            //console.log(`processing`)
+            var block = Block.decode( one.block.buffer)
+            var prehash = Buffer.from(one.prehash.buffer as Buffer)
+            returnRows.push({block: block, prehash: prehash})
+        
+        }
+        return returnRows
+    }
+
     public async submitBlock(block:Block) {
         console.log(`Submit Block`)
     }
+
+  
 }

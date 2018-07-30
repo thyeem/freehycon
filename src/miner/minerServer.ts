@@ -30,7 +30,7 @@ export class MinerServer {
     public consensus: IConsensus
     public network: INetwork
     private freeHyconServer: FreeHyconServer
-    private mongoServer: MongoServer
+    public mongoServer: MongoServer
     private intervalId: NodeJS.Timer
     private worldState: WorldState
 
@@ -76,6 +76,7 @@ export class MinerServer {
 
     }
 
+    // submitBlock is the answer
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
 
@@ -95,7 +96,8 @@ export class MinerServer {
         })
 
         const prehash = block.header.preHash()
-        this.freeHyconServer.putWork(block, prehash)
+        // this is done through polling mongodb
+       // this.freeHyconServer.putWork(block, prehash)
         this.mongoServer.putWork(block, prehash)
     }
 }

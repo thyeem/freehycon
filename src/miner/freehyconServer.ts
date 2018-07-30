@@ -11,6 +11,7 @@ import { Banker } from "./banker"
 import { DataCenter, IMinerReward } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
+const assert = require('assert')
 
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
@@ -109,7 +110,8 @@ export class FreeHyconServer {
     private dataCenter: DataCenter
     private banker: Banker
 
-    constructor(minerServer: MinerServer, port: number = 9081) {
+    constructor(minerServer: MinerServer, port: number = 908)
+    {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.minerServer = minerServer
         this.port = port
@@ -120,7 +122,31 @@ export class FreeHyconServer {
         this.banker = new Banker(this.minerServer)
         this.jobId = 0
         this.init()
+        setInterval(async ()=>{           
+          this.pollingWork()
+        }, 100)
     }
+
+
+    oldPrehash:string = ""
+    public async pollingWork() {
+        
+        var foundWorks:any[]=await this.minerServer.mongoServer.pollingPutWork()
+        if (foundWorks.length>0) {
+            assert.ok(1=== foundWorks.length)
+            var found = foundWorks[0]
+            const newPrehash=found.prehash.toString("hex")
+            if (this.oldPrehash === newPrehash) {
+                // continue
+            }
+            else {
+              console.log(`Polling PutWork Prehash=${found.prehash.toString("hex")}   ${new Date()}`)
+              this.oldPrehash = newPrehash
+              await this.putWork(found.block, found.prehash)
+            }
+        }
+    }
+
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
