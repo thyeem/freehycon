@@ -11,7 +11,7 @@ import { Banker } from "./banker"
 import { DataCenter, IMinerReward } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
-import {MongoServer} from "./mongoServer"
+import { MongoServer } from "./mongoServer"
 import delay from "delay"
 const assert = require('assert')
 
@@ -112,13 +112,12 @@ export class FreeHyconServer {
     private dataCenter: DataCenter
     private banker: Banker
 
-    private mongoServer:MongoServer 
+    private mongoServer: MongoServer
 
-    constructor(mongoServer:MongoServer, minerServer: MinerServer, port: number = 908)
-    {
+    constructor(mongoServer: MongoServer, minerServer: MinerServer, port: number = 908) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.minerServer = minerServer
-        this.mongoServer= mongoServer
+        this.mongoServer = mongoServer
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
         this.mapJob = new Map<number, IJob>()
@@ -127,34 +126,34 @@ export class FreeHyconServer {
         this.banker = new Banker(this.minerServer)
         this.jobId = 0
         this.init()
-        setInterval(async ()=>{           
-          this.pollingWork()
+        setInterval(async () => {
+            this.pollingWork()
         }, 100)
     }
 
 
-    oldPrehash:string = ""
+    oldPrehash: string = ""
     public async pollingWork() {
-        
-        var foundWorks:any[]=await this.mongoServer.pollingPutWork()
-        if (foundWorks.length>0) {
-            assert.ok(1=== foundWorks.length)
+
+        var foundWorks: any[] = await this.mongoServer.pollingPutWork()
+        if (foundWorks.length > 0) {
+            assert.ok(1 === foundWorks.length)
             var found = foundWorks[0]
-            const newPrehash=found.prehash.toString("hex")
+            const newPrehash = found.prehash.toString("hex")
             if (this.oldPrehash === newPrehash) {
                 // continue
             }
             else {
-              console.log(`Polling PutWork Prehash=${found.prehash.toString("hex")}   ${new Date()}`)
-              this.oldPrehash = newPrehash
-              await this.putWork(found.block, found.prehash)
-            
-              // test code
-              /*
-             setTimeout( ()=>{                   
-                    this.mongoServer.submitBlock(found.block, found.prehash)                   
-                    },
-               2000)*/            
+                console.log(`Polling PutWork Prehash=${found.prehash.toString("hex")}   ${new Date()}`)
+                this.oldPrehash = newPrehash
+                await this.putWork(found.block, found.prehash)
+
+                // test code
+                /*
+               setTimeout( ()=>{                   
+                      this.mongoServer.submitBlock(found.block, found.prehash)                   
+                      },
+                 2000)*/
             }
         }
     }

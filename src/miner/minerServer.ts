@@ -12,7 +12,7 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { FreeHyconServer } from "./freehyconServer"
-import {MongoServer} from "./mongoServer"
+import { MongoServer } from "./mongoServer"
 const logger = getLogger("Miner")
 
 export class MinerServer {
@@ -38,26 +38,25 @@ export class MinerServer {
         this.txpool = txpool
         this.worldState = worldState
         this.consensus = consensus
-        this.network = network 
+        this.network = network
         this.mongoServer = new MongoServer(this)
-        this.freeHyconServer = new FreeHyconServer(this.mongoServer, this, stratumPort)        
+        this.freeHyconServer = new FreeHyconServer(this.mongoServer, this, stratumPort)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
 
-        setInterval(async ()=>{           
+        setInterval(async () => {
             this.pollingSubmit()
-          }, 2000)
+        }, 2000)
     }
 
     public async pollingSubmit() {
-        
-        var foundWorks:any[]=await this.mongoServer.pollingSubmitWork()
-        if (foundWorks.length>0) {          
-             for (let i=0;i<foundWorks.length;i++)         
-             {
-                 let found = foundWorks[i]
-                 console.log(`${i}/${foundWorks.length-1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
-                await this.submitBlock(found)  
-             }
+
+        var foundWorks: any[] = await this.mongoServer.pollingSubmitWork()
+        if (foundWorks.length > 0) {
+            for (let i = 0; i < foundWorks.length; i++) {
+                let found = foundWorks[i]
+                console.log(`${i}/${foundWorks.length - 1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
+                await this.submitBlock(found)
+            }
         }
     }
     public async submitBlock(block: Block) {
@@ -114,7 +113,7 @@ export class MinerServer {
 
         const prehash = block.header.preHash()
         // this is done through polling mongodb
-       // this.freeHyconServer.putWork(block, prehash)
+        // this.freeHyconServer.putWork(block, prehash)
         this.mongoServer.putWork(block, prehash)
     }
 }
