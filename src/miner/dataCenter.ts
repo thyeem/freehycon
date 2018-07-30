@@ -76,8 +76,8 @@ export class DataCenter {
     private minerServer: MinerServer
     private readonly minersFile = "miners.json"
     private readonly blocksFile = "blocks.json"
-    constructor(minerServer: MinerServer) {
-        this.minerServer = minerServer
+    constructor(mongoServer: MongoServer) {
+        this.mongoServer = mongoServer
         this.blicklist = new Set<string>()
         this.minerG = new Map<string, IMinerGroup>()
         this.rewardBase = new Map<string, IMinerReward>()
