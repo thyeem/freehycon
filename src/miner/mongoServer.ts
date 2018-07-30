@@ -68,7 +68,8 @@ export class MongoServer {
     public async  putWork(block: Block, prehash: Uint8Array) {
         const collection=this.db.collection(`Works`)
         
-        let putWorkData= {block: block.encode(), prehash: Buffer.from(prehash), time: new Date()}
+        var jsonInfo = {block:JSON.stringify(block), prehash:JSON.stringify(prehash)}
+        let putWorkData= {block: block.encode(), prehash: Buffer.from(prehash), time: new Date(), info:jsonInfo}
          await collection.remove({})
         await collection.insertOne( putWorkData)
 
@@ -84,15 +85,32 @@ export class MongoServer {
             //console.log(`processing`)
             var block = Block.decode( one.block.buffer)
             var prehash = Buffer.from(one.prehash.buffer as Buffer)
-            returnRows.push({block: block, prehash: prehash})
+            returnRows.push({block: block, prehash: prehash, time: one.time})
         
         }
         return returnRows
     }
 
-    public async submitBlock(block:Block) {
+    public async submitBlock(block:Block  , prehash: Uint8Array) {
         console.log(`Submit Block`)
+        const collection=this.db.collection(`Submits`)        
+        let submit={block: block.encode(), prehash: Buffer.from(prehash),  time: new Date(), info: JSON.stringify(block) }
+        await collection.insertOne(submit)
     }
 
-  
+    public async pollingSubmitWork() : Promise<any[]>
+    { 
+        const collection=this.db.collection(`Submits`)
+        var rows:any [] = await  collection.find({}).limit(1000).toArray()
+        var returnRows: any[]= []
+        for (let one of rows) {
+            collection.deleteOne({_id:one._id})
+            //console.log(`processing`)
+            var block = Block.decode( one.block.buffer)
+            var prehash = Buffer.from(one.prehash.buffer as Buffer)
+            returnRows.push({block: block, prehash: prehash, time: one.time})
+        
+        }
+        return returnRows
+    }
 }

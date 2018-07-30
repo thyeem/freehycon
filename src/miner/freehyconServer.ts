@@ -12,6 +12,7 @@ import { DataCenter, IMinerReward } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
 import {MongoServer} from "./mongoServer"
+import delay from "delay"
 const assert = require('assert')
 
 // tslint:disable-next-line:no-var-requires
@@ -147,6 +148,13 @@ export class FreeHyconServer {
               console.log(`Polling PutWork Prehash=${found.prehash.toString("hex")}   ${new Date()}`)
               this.oldPrehash = newPrehash
               await this.putWork(found.block, found.prehash)
+            
+              // test code
+              /*
+             setTimeout( ()=>{                   
+                    this.mongoServer.submitBlock(found.block, found.prehash)                   
+                    },
+               2000)*/            
             }
         }
     }

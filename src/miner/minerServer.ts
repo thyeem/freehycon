@@ -42,6 +42,23 @@ export class MinerServer {
         this.mongoServer = new MongoServer(this)
         this.freeHyconServer = new FreeHyconServer(this.mongoServer, this, stratumPort)        
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
+
+        setInterval(async ()=>{           
+            this.pollingSubmit()
+          }, 2000)
+    }
+
+    public async pollingSubmit() {
+        
+        var foundWorks:any[]=await this.mongoServer.pollingSubmitWork()
+        if (foundWorks.length>0) {          
+             for (let i=0;i<foundWorks.length;i++)         
+             {
+                 let found = foundWorks[i]
+                 console.log(`${i}/${foundWorks.length-1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
+                await this.submitBlock(found)  
+             }
+        }
     }
     public async submitBlock(block: Block) {
         if (await this.consensus.putBlock(block)) {
