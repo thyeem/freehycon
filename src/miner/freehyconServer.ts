@@ -11,6 +11,7 @@ import { Banker } from "./banker"
 import { DataCenter, IMinerReward } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
+import {MongoServer} from "./mongoServer"
 const assert = require('assert')
 
 // tslint:disable-next-line:no-var-requires
@@ -110,10 +111,13 @@ export class FreeHyconServer {
     private dataCenter: DataCenter
     private banker: Banker
 
-    constructor(minerServer: MinerServer, port: number = 908)
+    private mongoServer:MongoServer 
+
+    constructor(mongoServer:MongoServer, minerServer: MinerServer, port: number = 908)
     {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.minerServer = minerServer
+        this.mongoServer= mongoServer
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
         this.mapJob = new Map<number, IJob>()
@@ -131,7 +135,7 @@ export class FreeHyconServer {
     oldPrehash:string = ""
     public async pollingWork() {
         
-        var foundWorks:any[]=await this.minerServer.mongoServer.pollingPutWork()
+        var foundWorks:any[]=await this.mongoServer.pollingPutWork()
         if (foundWorks.length>0) {
             assert.ok(1=== foundWorks.length)
             var found = foundWorks[0]

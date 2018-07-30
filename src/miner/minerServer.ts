@@ -38,9 +38,9 @@ export class MinerServer {
         this.txpool = txpool
         this.worldState = worldState
         this.consensus = consensus
-        this.network = network
-        this.freeHyconServer = new FreeHyconServer(this, stratumPort)
+        this.network = network 
         this.mongoServer = new MongoServer(this)
+        this.freeHyconServer = new FreeHyconServer(this.mongoServer, this, stratumPort)        
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
     }
     public async submitBlock(block: Block) {
