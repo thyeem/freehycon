@@ -55,14 +55,14 @@ export class MinerServer {
             for (let i = 0; i < foundWorks.length; i++) {
                 let found = foundWorks[i]
                 console.log(`${i}/${foundWorks.length - 1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
-                await this.submitBlock(found)
+                await this.submitBlock(found.block)
             }
         }
     }
     public async submitBlock(block: Block) {
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
-            this.freeHyconServer.stop()
+            // this.freeHyconServer.stop()
         }
     }
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {

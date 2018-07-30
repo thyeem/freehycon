@@ -149,11 +149,10 @@ export class FreeHyconServer {
                 await this.putWork(found.block, found.prehash)
 
                 // test code
-                /*
-               setTimeout( ()=>{                   
-                      this.mongoServer.submitBlock(found.block, found.prehash)                   
-                      },
-                 2000)*/
+                /*  setTimeout(() => {
+                      this.mongoServer.submitBlock(found.block, found.prehash)
+                  },
+                      2000)*/
             }
         }
     }
