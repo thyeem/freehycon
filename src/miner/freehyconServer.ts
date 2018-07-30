@@ -93,12 +93,12 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     public static readonly freqDayoff = 40
-    public static readonly deferredTime = 10000
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 10
     private readonly numDayoffProblems = 4
+    private readonly deferredTime = 10000
     private jobId: number
     private port: number
     private minerServer: MinerServer
@@ -274,10 +274,9 @@ export class FreeHyconServer {
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                this.minerServer.submitBlock(minedBlock)
+                this.minerServer.submitBlock(minedBlock).then(() => { this.dataCenter.addMinedBlock(minedBlock) })
                 const { miners, rewardBase, roundHash } = this.newRound()
                 this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
-                this.dataCenter.addMinedBlock(minedBlock)
             }
             return true
         } catch (e) {
@@ -357,7 +356,7 @@ export class FreeHyconServer {
                 this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
             }
             this.dataCenter.payments--
-        }, FreeHyconServer.deferredTime)
+        }, this.deferredTime)
     }
     private async releaseData() {
         const miners = Array.from(this.mapMiner.values())

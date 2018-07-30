@@ -3,7 +3,7 @@ import { getLogger } from "log4js"
 import { Block } from "../common/block"
 import { BlockStatus } from "../consensus/sync"
 import { Hash } from "../util/hash"
-import { FreeHyconServer, IMiner, MinerStatus } from "./freehyconServer"
+import { IMiner, MinerStatus } from "./freehyconServer"
 import { MinerServer } from "./minerServer"
 const logger = getLogger("dataCenter")
 
@@ -59,6 +59,7 @@ export interface IMinerReward {
 interface IMinedBlocks {
     mainchain: boolean
     hash: string
+    prevHash: string
     timestamp: number
     height: number
 }
@@ -92,11 +93,11 @@ export class DataCenter {
                 this.minerG.set(miner.address, miner)
             }
         }
-        // if (fs.existsSync(this.blocksFile)) {
-        //     const data = fs.readFileSync(this.blocksFile)
-        //     this.minedBlocks = JSON.parse(data.toString())
-        // } else {
-        // }
+        if (fs.existsSync(this.blocksFile)) {
+            const data = fs.readFileSync(this.blocksFile)
+            this.minedBlocks = JSON.parse(data.toString())
+        }
+        this.updateMinedBlocks()
     }
     public updateMinerInfo(miners: IMiner[]) {
         this.reset()
@@ -157,7 +158,7 @@ export class DataCenter {
         return poolMiners
     }
     public getPoolBlocks() {
-        const poolBlocks = Array.from(this.minedBlocks)
+        const poolBlocks = Array.from(this.minedBlocks).slice()
         poolBlocks.sort((a, b) => {
             return b.height - a.height
         })
@@ -173,18 +174,34 @@ export class DataCenter {
     }
     public async addMinedBlock(block: Block) {
         const hash = new Hash(block.header)
-        setTimeout(async () => {
-            const status = await this.minerServer.consensus.getBlockStatus(hash)
-            const height = await this.minerServer.consensus.getBlockHeight(hash)
-            const newBlock: IMinedBlocks = {
-                hash: hash.toString(),
-                height,
-                mainchain: status === BlockStatus.MainChain,
-                timestamp: block.header.timeStamp,
+        const status = await this.minerServer.consensus.getBlockStatus(hash)
+        const height = await this.minerServer.consensus.getBlockHeight(hash)
+        const newBlock: IMinedBlocks = {
+            hash: hash.toString(),
+            height,
+            mainchain: status === BlockStatus.MainChain,
+            prevHash: block.header.previousHash[0].toString(),
+            timestamp: block.header.timeStamp,
+        }
+        this.minedBlocks.unshift(newBlock)
+    }
+    public async updateMinedBlocks() {
+        try {
+            const count = Math.min(this.minedBlocks.length, 10)
+            let n = 0
+            for (const block of this.minedBlocks) {
+                if (n >= count) { break }
+                const hash = new Hash(block.hash)
+                const status = await this.minerServer.consensus.getBlockStatus(hash)
+                block.mainchain = status === BlockStatus.MainChain
+                n++
             }
-            this.minedBlocks.unshift(newBlock)
-        }, FreeHyconServer.deferredTime)
-
+        } catch (e) {
+            logger.error(`error in updating mined blocks: ${e}`)
+        }
+        setTimeout(async () => {
+            this.updateMinedBlocks()
+        }, 300000)
     }
     public async clearBlacklist() {
         this.blicklist.clear()

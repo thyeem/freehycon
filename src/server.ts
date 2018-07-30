@@ -41,10 +41,6 @@ export class Server {
     }
     public async run() {
         await this.consensus.init()
-        const address = new Address("H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP")
-        const blocks = await this.consensus.getMinedBlocks(address, 20)
-        logger.warn(blocks.length)
-        process.exit(0)
         // logger.info("Starting server...")
         // logger.debug(`API flag is ${globalOptions.api}`)
         // if (globalOptions.api !== false) {
