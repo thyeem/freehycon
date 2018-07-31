@@ -38,17 +38,17 @@ export class Server {
         this.consensus = new Consensus(this.txPool, this.worldState, prefix + "blockdb" + postfix, prefix + "rawblock" + postfix, prefix + "txDB" + postfix, prefix + "minedDB" + postfix)
         this.network = new RabbitNetwork(this.txPool, this.consensus, globalOptions.port, prefix + "peerdb" + postfix, globalOptions.networkid)
         this.miner = new MinerServer(this.txPool, this.worldState, this.consensus, this.network, globalOptions.cpuMiners, globalOptions.str_port)
-        this.rest = new RestManager(this)
+        // this.rest = new RestManager(this)
     }
     public async run() {
         await this.consensus.init()
         logger.info("Starting server...")
-        logger.debug(`API flag is ${globalOptions.api}`)
-        if (globalOptions.api !== false) {
-            logger.info("Test API")
-            logger.info(`API Port ${globalOptions.api_port}`)
-            this.httpServer = new HttpServer(this.rest, globalOptions.api_port, globalOptions)
-        }
+        // logger.debug(`API flag is ${globalOptions.api}`)
+        // if (globalOptions.api !== false) {
+        //     logger.info("Test API")
+        //     logger.info(`API Port ${globalOptions.api_port}`)
+        //     this.httpServer = new HttpServer(this.rest, globalOptions.api_port, globalOptions)
+        // }
         await this.network.start()
         await Wallet.walletInit()
         if (globalOptions.peer) {
@@ -65,7 +65,7 @@ export class Server {
     public async runSync() {
         logger.debug(`begin sync`)
         const peerPromises = this.network.getPeers().map((peer) => peer.getTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
-        const peers = [] as { peer: IPeer; tip: ITip; }[]
+        const peers = [] as Array<{ peer: IPeer; tip: ITip; }>
         for (const peerPromise of peerPromises) {
             try {
                 const result = await peerPromise
@@ -76,15 +76,21 @@ export class Server {
                 logger.debug(e)
             }
         }
-        const syncCandidates = peers.filter((peer) => peer.tip.totalwork > this.consensus.getBtip().totalWork)
-
-        if (syncCandidates.length > 0) {
-            const syncPeer = syncCandidates[Math.floor(Math.random() * syncCandidates.length)]
+        const totalworks: number[] = []
+        const localTotalwork = this.consensus.getBtip().totalWork
+        for (const peer of peers) {
+            if (peer === undefined) { continue }
+            const remoteTotalwork = peer.tip.totalwork
+            if (remoteTotalwork > localTotalwork) { totalworks.push(remoteTotalwork) }
+        }
+        if (totalworks.length > 0) {
+            const maxRemoteTotalwork = Math.max(...totalworks)
+            const syncPeer = peers[totalworks.indexOf(maxRemoteTotalwork)]
+            logger.warn(`maxTotalwork of syncPeer: ${maxRemoteTotalwork}`)
             const sync = new Sync(syncPeer, this.consensus, this.network.version)
             await sync.sync()
         }
-
-        setTimeout(() => this.runSync(), 3000)
+        setTimeout(() => this.runSync(), 1000)
         logger.debug(`end sync`)
     }
 }

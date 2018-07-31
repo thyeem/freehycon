@@ -1,1 +1,1 @@
-{"minerGroups":[{"address":"H3fsSec3yxrj792zHyEY8JoXZN4SUsQuh","elapsed":131576,"elapsedStr":"2m 12s","fee":14.666644307082151,"hashrate":35.39512019506916,"hashshare":517.866003574057,"nodes":1,"reward":503.19935926697485}],"minersCount":1,"poolHashrate":35.39512019506916,"poolHashshare":517.866003574057}
+{"minerGroups":[{"address":"H3fsSec3yxrj792zHyEY8JoXZN4SUsQuh","elapsed":0,"elapsedStr":"-","fee":14.666644307082151,"hashrate":0,"hashshare":517.866003574057,"nodes":0,"reward":503.19935926697485}],"minersCount":0,"poolHashrate":0,"poolHashshare":517.866003574057}

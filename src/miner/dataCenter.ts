@@ -191,7 +191,7 @@ export class DataCenter {
             let n = 0
             for (const block of this.minedBlocks) {
                 if (n >= count) { break }
-                const hash = new Hash(block.hash)
+                const hash = Hash.decode(block.hash)
                 const status = await this.minerServer.consensus.getBlockStatus(hash)
                 block.mainchain = status === BlockStatus.MainChain
                 n++
