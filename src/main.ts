@@ -1,5 +1,6 @@
 import { configure, getLogger } from "log4js"
 import { showHelp } from "./help"
+
 configure({
     appenders: {
 
@@ -47,10 +48,13 @@ const optionDefinitions = [
     { name: "visualize", alias: "V", type: Boolean },
     { name: "wallet", alias: "W", type: Boolean },
     { name: "writing", alias: "w", type: Boolean },
+    { name: "freehycon", alias: "F", type: Boolean }
 ]
 
 import conf = require("./settings")
 export const globalOptions = commandLineArgs(optionDefinitions)
+
+
 
 if (globalOptions.help) {
     showHelp()
@@ -108,6 +112,7 @@ logger.info(`Stratum Port=${globalOptions.str_port}`)
 import * as fs from "fs-extra"
 import { Server } from "./server"
 import { Wallet } from "./wallet/wallet"
+import { freehyconProgram } from "./miner/freehycon"
 // tslint:disable-next-line:no-var-requires
 const input = require("input")
 async function createDefaultWallet(): Promise<string> {
@@ -181,6 +186,10 @@ async function main() {
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
 
+    if (globalOptions.freehycon !== undefined) {
+        freehyconProgram()
+        return
+    }
     if (globalOptions.lite === undefined || globalOptions.lite) {
         const hycon = new Server()
         hycon.run()
