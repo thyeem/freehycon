@@ -5,7 +5,7 @@ import { MongoClient, Mongodb } from "mongodb"
 import * as assert from "assert"
 import { equal } from "assert"
 import { delay } from "delay"
-import { MinerServer } from "./minerServer"
+
 import { Hash } from "../util/hash"
 export class MongoServer {
     private minerServer: MinerServer
@@ -15,9 +15,7 @@ export class MongoServer {
 
     private client: MongoClient
     private db: Mongodb
-    constructor(minerServer: MinerServer) {
-        assert.ok(minerServer)
-        this.minerServer = minerServer
+    constructor() {
         this.initialize()
     }
 
