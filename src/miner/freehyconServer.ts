@@ -122,7 +122,7 @@ export class FreeHyconServer {
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
-        this.dataCenter = new DataCenter(this.minerServer)
+        this.dataCenter = new DataCenter(this.mongoServer)
         this.banker = new Banker(this.minerServer)
         this.jobId = 0
         this.init()

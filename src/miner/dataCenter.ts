@@ -4,7 +4,7 @@ import { Block } from "../common/block"
 import { BlockStatus } from "../consensus/sync"
 import { Hash } from "../util/hash"
 import { IMiner, MinerStatus } from "./freehyconServer"
-import { MinerServer } from "./minerServer"
+import { MongoServer } from "./mongoServer"
 const logger = getLogger("dataCenter")
 
 function formatTime(second: number) {
@@ -73,7 +73,7 @@ export class DataCenter {
     public workerHash: number
     public worker: number
     public minerG: Map<string, IMinerGroup>
-    private minerServer: MinerServer
+    private mongoServer: MongoServer
     private readonly minersFile = "miners.json"
     private readonly blocksFile = "blocks.json"
     constructor(mongoServer: MongoServer) {
