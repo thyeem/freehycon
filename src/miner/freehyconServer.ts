@@ -312,7 +312,7 @@ export class FreeHyconServer {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 // this.minerServer.submitBlock(minedBlock).then(() => { this.dataCenter.addMinedBlock(minedBlock) })
-                this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash)
+                this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash())
                 const { miners, rewardBase, roundHash } = this.newRound()
                 this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
             }
