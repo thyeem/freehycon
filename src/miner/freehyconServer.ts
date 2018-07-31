@@ -315,7 +315,7 @@ export class FreeHyconServer {
                 this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash())
                 const { miners, rewardBase, roundHash } = this.newRound()
                 const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.payWages({ blockHash, rewardBase, roundHash })
+                this.mongoServer.payWages({ blockHash: blockHash.toBuffer(), rewardBase, roundHash })
                 this.payWages(blockHash, rewardBase, roundHash)
 
             }
@@ -390,14 +390,14 @@ export class FreeHyconServer {
     private async payWages(hash: Hash, rewardBase: Map<string, IMinerReward>, roundHash: number) {
         this.dataCenter.payments++
         this.newRound()
-        setTimeout(async () => {
-            const status = await this.minerServer.consensus.getBlockStatus(hash)
-            const height = await this.minerServer.consensus.getBlockHeight(hash)
-            if (status === BlockStatus.MainChain) {
-                this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
-            }
-            this.dataCenter.payments--
-        }, this.deferredTime)
+        /*  setTimeout(async () => {
+              const status = await this.minerServer.consensus.getBlockStatus(hash)
+              const height = await this.minerServer.consensus.getBlockHeight(hash)
+              if (status === BlockStatus.MainChain) {
+                  this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
+              }
+              this.dataCenter.payments--
+          }, this.deferredTime)*/
     }
     private async releaseData() {
         const miners = Array.from(this.mapMiner.values())

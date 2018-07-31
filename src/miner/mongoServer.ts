@@ -6,7 +6,7 @@ import * as assert from "assert"
 import { equal } from "assert"
 import { delay } from "delay"
 import { MinerServer } from "./minerServer"
-
+import { Hash } from "../util/hash"
 export class MongoServer {
     private minerServer: MinerServer
     private url: string = "mongodb://localhost:27017"
@@ -147,7 +147,9 @@ export class MongoServer {
         var rows: any[] = await collection.find({}).limit(1000).toArray()
         var returnRows: any[] = []
         for (let one of rows) {
-            //  collection.deleteOne({ _id: one._id })
+            collection.deleteOne({ _id: one._id })
+            const hash = new Hash(Buffer.from(one.blockHash.buffer))
+            one.blockHash =hash
             returnRows.push(one)
         }
         return returnRows
