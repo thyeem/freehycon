@@ -369,10 +369,10 @@ export class RabbitPeer extends BasePeer implements IPeer {
     }
 
     private async blockBroadcastCondition(block: Block) {
-        const timeDelta = Math.abs(block.header.timeStamp - Date.now())
-        if (timeDelta > TIMESTAMP_TOLERANCE) {
-            return false
-        }
+        // const timeDelta = Math.abs(block.header.timeStamp - Date.now())
+        // if (timeDelta > TIMESTAMP_TOLERANCE) {
+        //     return false
+        // }
         const merkleRoot = Block.calculateMerkleRoot(block.txs)
         if (!block.header.merkleRoot.equals(merkleRoot)) {
             return false
