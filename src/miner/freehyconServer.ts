@@ -100,7 +100,7 @@ export class FreeHyconServer {
     private readonly diffcultyInspector = 0.005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 10
+    private readonly numInterviewProblems = 2
     private readonly numDayoffProblems = 4
     private readonly deferredTime = 360000
     private jobId: number
@@ -311,7 +311,8 @@ export class FreeHyconServer {
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                this.minerServer.submitBlock(minedBlock).then(() => { this.dataCenter.addMinedBlock(minedBlock) })
+                // this.minerServer.submitBlock(minedBlock).then(() => { this.dataCenter.addMinedBlock(minedBlock) })
+                this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash)
                 const { miners, rewardBase, roundHash } = this.newRound()
                 this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
             }

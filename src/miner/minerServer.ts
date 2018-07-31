@@ -56,6 +56,7 @@ export class MinerServer {
                 let found = foundWorks[i]
                 console.log(`${i}/${foundWorks.length - 1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
                 await this.submitBlock(found.block)
+                // this.dataCenter.addMinedBlock(minedBlock) })
             }
         }
     }
