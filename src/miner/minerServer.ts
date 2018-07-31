@@ -44,7 +44,8 @@ export class MinerServer {
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
 
         setInterval(async () => {
-            this.pollingSubmit()
+            await this.pollingSubmit()
+            await this.pollingPayWages()
         }, 2000)
     }
 
@@ -57,7 +58,19 @@ export class MinerServer {
                 console.log(`${i}/${foundWorks.length - 1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
                 await this.submitBlock(found.block)
                 this.mongoServer.addMinedBlock(found.block)
+                //this.payWages()
                 // this.dataCenter.addMinedBlock(minedBlock) })
+                //  const { miners, rewardBase, roundHash } = this.newRound()
+                // this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
+            }
+        }
+    }
+    public async pollingPayWages() {
+        var wages = await this.mongoServer.pollingPayWages()
+        if (wages.length > 0) {
+            for (let i = 0; i < wages.length; i++) {
+                let found = wages[i]
+                console.log(`${i}/${wages.length - 1} Wage`)
             }
         }
     }

@@ -136,4 +136,21 @@ export class MongoServer {
         await miners.remove({})
         await miners.insertMany(minersInfo.minerGroups)
     }
+
+    public async payWages(wageInfo: any) {
+        const info = this.db.collection(`PayWages`)
+        info.insertOne(wageInfo)
+    }
+
+    public async pollingPayWages(): Promise<any[]> {
+        const collection = this.db.collection(`PayWages`)
+        var rows: any[] = await collection.find({}).limit(1000).toArray()
+        var returnRows: any[] = []
+        for (let one of rows) {
+            //  collection.deleteOne({ _id: one._id })
+            returnRows.push(one)
+        }
+        return returnRows
+    }
+
 }
