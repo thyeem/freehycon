@@ -123,4 +123,17 @@ export class MongoServer {
     }
 
 
+    public async writeMiners(minersInfo: any) {
+        const info = this.db.collection(`Info`)
+        await info.remove({})
+        await info.insertOne({
+            minersCount: minersInfo.minersCount,
+            poolHashrate: minersInfo.poolHashrate,
+            poolHashshare: minersInfo.poolHashshare
+        })
+
+        const miners = this.db.collection(`MinerGroups`)
+        await miners.remove({})
+        await miners.insertMany(minersInfo.minerGroups)
+    }
 }

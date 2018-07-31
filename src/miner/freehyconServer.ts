@@ -137,7 +137,7 @@ export class FreeHyconServer {
 
         var foundWorks: any[] = await this.mongoServer.pollingPutWork()
         if (foundWorks.length > 0) {
-            assert.ok(1 === foundWorks.length)
+            // assert.ok(1 === foundWorks.length)
             var found = foundWorks[0]
             const newPrehash = found.prehash.toString("hex")
             if (this.oldPrehash === newPrehash) {

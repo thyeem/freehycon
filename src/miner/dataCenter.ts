@@ -143,6 +143,10 @@ export class DataCenter {
         const poolBlocks = this.getPoolBlocks()
         logger.warn(`${this.minedBlocks.length} blocks mined | total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
         this.writeFileJSON(poolMiners, poolBlocks)
+
+
+        // write to mongo
+        this.mongoServer.writeMiners(poolMiners)
     }
     public getPoolMiners(minersCount: number) {
         const minerGroups: IMinerGroup[] = Array.from(this.minerG.values())
