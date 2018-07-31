@@ -124,6 +124,8 @@ export class MongoServer {
 
 
     public async writeMiners(minersInfo: any) {
+        if (this.db === undefined)
+            return
         const info = this.db.collection(`Info`)
         await info.remove({})
         await info.insertOne({
@@ -149,7 +151,7 @@ export class MongoServer {
         for (let one of rows) {
             collection.deleteOne({ _id: one._id })
             const hash = new Hash(Buffer.from(one.blockHash.buffer))
-            one.blockHash =hash
+            one.blockHash = hash
             returnRows.push(one)
         }
         return returnRows
