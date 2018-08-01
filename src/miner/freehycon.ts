@@ -1,10 +1,6 @@
-import { MongoServer } from "./mongoServer"
 import { FreeHyconServer } from "./freehyconServer"
-export async function freehyconProgram() {
-    console.log(`freehycon`)
+import { MongoServer } from "./mongoServer"
+export async function runFreehycon() {
     const mongo = new MongoServer()
     const freeHyconServer = new FreeHyconServer(mongo, undefined, 9081)
-
 }
-
-

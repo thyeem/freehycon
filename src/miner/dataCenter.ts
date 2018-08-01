@@ -143,9 +143,6 @@ export class DataCenter {
         const poolBlocks = this.getPoolBlocks()
         logger.warn(`${this.minedBlocks.length} blocks mined | total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
         this.writeFileJSON(poolMiners, poolBlocks)
-
-
-        // write to mongo
         this.mongoServer.writeMiners(poolMiners)
     }
     public getPoolMiners(minersCount: number) {
@@ -177,35 +174,35 @@ export class DataCenter {
         }
     }
     public async addMinedBlock(block: Block) {
-        const hash = new Hash(block.header)
-        const status = await this.minerServer.consensus.getBlockStatus(hash)
-        const height = await this.minerServer.consensus.getBlockHeight(hash)
-        const newBlock: IMinedBlocks = {
-            hash: hash.toString(),
-            height,
-            mainchain: status === BlockStatus.MainChain,
-            prevHash: block.header.previousHash[0].toString(),
-            timestamp: block.header.timeStamp,
-        }
-        this.minedBlocks.unshift(newBlock)
+        // const hash = new Hash(block.header)
+        // const status = await this.minerServer.consensus.getBlockStatus(hash)
+        // const height = await this.minerServer.consensus.getBlockHeight(hash)
+        // const newBlock: IMinedBlocks = {
+        //     hash: hash.toString(),
+        //     height,
+        //     mainchain: status === BlockStatus.MainChain,
+        //     prevHash: block.header.previousHash[0].toString(),
+        //     timestamp: block.header.timeStamp,
+        // }
+        // this.minedBlocks.unshift(newBlock)
     }
     public async updateMinedBlocks() {
-        try {
-            const count = Math.min(this.minedBlocks.length, 10)
-            let n = 0
-            for (const block of this.minedBlocks) {
-                if (n >= count) { break }
-                const hash = Hash.decode(block.hash)
-                const status = await this.minerServer.consensus.getBlockStatus(hash)
-                block.mainchain = status === BlockStatus.MainChain
-                n++
-            }
-        } catch (e) {
-            logger.error(`error in updating mined blocks: ${e}`)
-        }
-        setTimeout(async () => {
-            this.updateMinedBlocks()
-        }, 300000)
+        // try {
+        //     const count = Math.min(this.minedBlocks.length, 10)
+        //     let n = 0
+        //     for (const block of this.minedBlocks) {
+        //         if (n >= count) { break }
+        //         const hash = Hash.decode(block.hash)
+        //         const status = await this.minerServer.consensus.getBlockStatus(hash)
+        //         block.mainchain = status === BlockStatus.MainChain
+        //         n++
+        //     }
+        // } catch (e) {
+        //     logger.error(`error in updating mined blocks: ${e}`)
+        // }
+        // setTimeout(async () => {
+        //     this.updateMinedBlocks()
+        // }, 300000)
     }
     public async clearBlacklist() {
         this.blicklist.clear()

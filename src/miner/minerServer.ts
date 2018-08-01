@@ -50,15 +50,13 @@ export class MinerServer {
     }
 
     public async pollingSubmit() {
-
-        var foundWorks: any[] = await this.mongoServer.pollingSubmitWork()
+        const foundWorks = await this.mongoServer.pollingSubmitWork()
         if (foundWorks.length > 0) {
-            for (let i = 0; i < foundWorks.length; i++) {
-                let found = foundWorks[i]
-                console.log(`${i}/${foundWorks.length - 1} Submit Prehash=${found.prehash.toString("hex")}   ${found.time}`)
+            // for (let i = 0; i < foundWorks.length; i++) {
+            for (const found of foundWorks) {
                 await this.submitBlock(found.block)
                 this.mongoServer.addMinedBlock(found.block)
-                //this.payWages()
+                // this.payWages()
                 // this.dataCenter.addMinedBlock(minedBlock) })
                 //  const { miners, rewardBase, roundHash } = this.newRound()
                 // this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
@@ -66,12 +64,9 @@ export class MinerServer {
         }
     }
     public async pollingPayWages() {
-        var wages = await this.mongoServer.pollingPayWages()
+        const wages = await this.mongoServer.pollingPayWages()
         if (wages.length > 0) {
-            for (let i = 0; i < wages.length; i++) {
-                let found = wages[i]
-                console.log(`${i}/${wages.length - 1} Wage`)
-            }
+            for (const wage of wages) { }
         }
     }
     public async submitBlock(block: Block) {
@@ -83,11 +78,9 @@ export class MinerServer {
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
         return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }
     }
-
     public setMinerCount(count: number) {
         globalOptions.cpuMiners = count
     }
-
     private candidate(previousDBBlock: DBBlock, previousHash: Hash): void {
         if (globalOptions.minerAddress === undefined || globalOptions.minerAddress === "") {
             logger.info("Can't mine without miner address")
@@ -106,7 +99,6 @@ export class MinerServer {
         this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 10000)
 
     }
-
     // submitBlock is the answer
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)

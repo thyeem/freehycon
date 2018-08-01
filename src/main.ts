@@ -48,19 +48,15 @@ const optionDefinitions = [
     { name: "visualize", alias: "V", type: Boolean },
     { name: "wallet", alias: "W", type: Boolean },
     { name: "writing", alias: "w", type: Boolean },
-    { name: "freehycon", alias: "F", type: Boolean }
+    { name: "freehycon", alias: "F", type: Boolean },
 ]
 
 import conf = require("./settings")
 export const globalOptions = commandLineArgs(optionDefinitions)
-
-
-
 if (globalOptions.help) {
     showHelp()
     process.exit(0)
 }
-
 if (globalOptions.cpuMiners === undefined) {
     globalOptions.cpuMiners = 1
 }
@@ -110,9 +106,9 @@ logger.info(`Port=${globalOptions.port}`)
 logger.info(`Stratum Port=${globalOptions.str_port}`)
 
 import * as fs from "fs-extra"
+import { runFreehycon } from "./miner/freehycon"
 import { Server } from "./server"
 import { Wallet } from "./wallet/wallet"
-import { freehyconProgram } from "./miner/freehycon"
 // tslint:disable-next-line:no-var-requires
 const input = require("input")
 async function createDefaultWallet(): Promise<string> {
@@ -187,7 +183,7 @@ async function main() {
     }
 
     if (globalOptions.freehycon !== undefined) {
-        freehyconProgram()
+        runFreehycon()
         return
     }
     if (globalOptions.lite === undefined || globalOptions.lite) {

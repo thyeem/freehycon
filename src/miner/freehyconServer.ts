@@ -12,8 +12,6 @@ import { DataCenter, IMinerReward } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
-import delay from "delay"
-const assert = require('assert')
 
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
@@ -111,6 +109,7 @@ export class FreeHyconServer {
     private mapJob: Map<number, IJob>
     private dataCenter: DataCenter
     private banker: Banker
+    private ongoingJob: string
 
     private mongoServer: MongoServer
 
@@ -130,33 +129,18 @@ export class FreeHyconServer {
             this.pollingWork()
         }, 100)
     }
-
-
-    oldPrehash: string = ""
     public async pollingWork() {
-
-        var foundWorks: any[] = await this.mongoServer.pollingPutWork()
+        const foundWorks = await this.mongoServer.pollingPutWork()
         if (foundWorks.length > 0) {
-            // assert.ok(1 === foundWorks.length)
-            var found = foundWorks[0]
+            const found = foundWorks[0]
             const newPrehash = found.prehash.toString("hex")
-            if (this.oldPrehash === newPrehash) {
-                // continue
-            }
-            else {
-                console.log(`Polling PutWork Prehash=${found.prehash.toString("hex")}   ${new Date()}`)
-                this.oldPrehash = newPrehash
+            if (newPrehash !== this.ongoingJob) {
+                this.ongoingJob = newPrehash
                 await this.putWork(found.block, found.prehash)
-
-                // test code
-                /*  setTimeout(() => {
-                      this.mongoServer.submitBlock(found.block, found.prehash)
-                  },
-                      2000)*/
+                logger.warn(`Polling PutWork Prehash=${found.prehash.toString("hex")}`)
             }
         }
     }
-
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
