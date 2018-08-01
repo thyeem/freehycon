@@ -84,7 +84,7 @@ export class MinerServer {
                         this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
                     }
                     this.mongoServer.notPaid--
-                }, 10000)
+                }, 360000)
                 await this.mongoServer.deletePayWage(pay._id)
                 this.mongoServer.notPaid++
             }
