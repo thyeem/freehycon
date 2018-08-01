@@ -15,14 +15,14 @@ export class MongoServer {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
     }
-    public async  putWork(block: Block, prehash: Uint8Array) {
+    public async putWork(block: Block, prehash: Uint8Array) {
         const collection = this.db.collection(`Works`)
         const jsonInfo = { block: JSON.stringify(block), prehash: JSON.stringify(prehash) }
         const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash), info: jsonInfo }
         await collection.remove({})
         await collection.insertOne(putWorkData)
     }
-    public async pollingPutWork(): Promise<any[]> {
+    public async pollingPutWork() {
         const collection = this.db.collection(`Works`)
         const rows = await collection.find({}).limit(this.maxCountPerQuery).toArray()
         const returnRows = []
@@ -30,7 +30,6 @@ export class MongoServer {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
             returnRows.push({ block, prehash })
-
         }
         return returnRows
     }
@@ -39,7 +38,7 @@ export class MongoServer {
         const submit = { block: block.encode(), prehash: Buffer.from(prehash), info: JSON.stringify(block) }
         await collection.insertOne(submit)
     }
-    public async pollingSubmitWork(): Promise<any[]> {
+    public async pollingSubmitWork() {
         const collection = this.db.collection(`Submits`)
         const rows = await collection.find({}).limit(1000).toArray()
         const returnRows = []
@@ -52,7 +51,6 @@ export class MongoServer {
         }
         return returnRows
     }
-
     public async addMinedBlock(block: Block) {
         const collection = this.db.collection(`MinedBlocks`)
         const mined = { block: block.encode(), info: JSON.stringify(block) }
@@ -75,10 +73,10 @@ export class MongoServer {
         const info = this.db.collection(`PayWages`)
         info.insertOne(wageInfo)
     }
-    public async pollingPayWages(): Promise<any[]> {
+    public async pollingPayWages() {
         const collection = this.db.collection(`PayWages`)
-        const rows: any[] = await collection.find({}).limit(1000).toArray()
-        const returnRows: any[] = []
+        const rows = await collection.find({}).limit(1000).toArray()
+        const returnRows = []
         for (const one of rows) {
             collection.deleteOne({ _id: one._id })
             const hash = new Hash(Buffer.from(one.blockHash.buffer))

@@ -113,7 +113,7 @@ export class FreeHyconServer {
 
     private mongoServer: MongoServer
 
-    constructor(mongoServer: MongoServer, minerServer: MinerServer, port: number = 908) {
+    constructor(mongoServer: MongoServer, minerServer: MinerServer, port: number = 9081) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.minerServer = minerServer
         this.mongoServer = mongoServer
@@ -125,14 +125,19 @@ export class FreeHyconServer {
         this.banker = new Banker(this.minerServer)
         this.jobId = 0
         this.init()
-        setInterval(async () => {
-            this.pollingWork()
+        this.runPollingJob()
+    }
+    public runPollingJob() {
+        this.pollingJob()
+        setTimeout(() => {
+            this.runPollingJob()
         }, 100)
     }
-    public async pollingWork() {
+    public async pollingJob() {
         const foundWorks = await this.mongoServer.pollingPutWork()
         if (foundWorks.length > 0) {
             const found = foundWorks[0]
+            if (!(found.block instanceof Block)) { return }
             const newPrehash = found.prehash.toString("hex")
             if (newPrehash !== this.ongoingJob) {
                 this.ongoingJob = newPrehash

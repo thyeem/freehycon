@@ -25,7 +25,6 @@ export class MinerServer {
         target = (target === undefined) ? DifficultyAdjuster.getTarget(difficulty) : target
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
-
     public txpool: ITxPool
     public consensus: IConsensus
     public network: INetwork
@@ -42,24 +41,22 @@ export class MinerServer {
         this.mongoServer = new MongoServer()
 
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
-
-        setInterval(async () => {
-            await this.pollingSubmit()
-            await this.pollingPayWages()
+        this.runPollingSubmit()
+    }
+    public async runPollingSubmit() {
+        await this.pollingSubmit()
+        await this.pollingPayWages()
+        setTimeout(async () => {
+            await this.runPollingSubmit()
         }, 2000)
     }
-
     public async pollingSubmit() {
         const foundWorks = await this.mongoServer.pollingSubmitWork()
         if (foundWorks.length > 0) {
-            // for (let i = 0; i < foundWorks.length; i++) {
             for (const found of foundWorks) {
+                if (!(found.block instanceof Block)) { continue }
                 await this.submitBlock(found.block)
                 this.mongoServer.addMinedBlock(found.block)
-                // this.payWages()
-                // this.dataCenter.addMinedBlock(minedBlock) })
-                //  const { miners, rewardBase, roundHash } = this.newRound()
-                // this.payWages(new Hash(minedBlock.header), rewardBase, roundHash)
             }
         }
     }
@@ -72,7 +69,6 @@ export class MinerServer {
     public async submitBlock(block: Block) {
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
-
         }
     }
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
@@ -91,15 +87,12 @@ export class MinerServer {
             logger.info("Last block is more than a day old, waiting for synchronization prior to mining.")
             return
         }
-
         const miner: Address = new Address(globalOptions.minerAddress)
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
         clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
         this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 10000)
-
     }
-    // submitBlock is the answer
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
 
@@ -119,7 +112,6 @@ export class MinerServer {
         })
 
         const prehash = block.header.preHash()
-        // this is done through polling mongodb
         this.mongoServer.putWork(block, prehash)
     }
 }
