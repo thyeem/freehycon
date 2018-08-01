@@ -1,8 +1,4 @@
-import * as fs from "fs-extra"
 import { getLogger } from "log4js"
-import { Block } from "../common/block"
-import { BlockStatus } from "../consensus/sync"
-import { Hash } from "../util/hash"
 import { IMiner, MinerStatus } from "./freehyconServer"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("dataCenter")
@@ -124,6 +120,9 @@ export class DataCenter {
         this.updateMinerInfo(miners)
         const poolMiners = this.getPoolMiners(minersCount)
         logger.warn(`total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
+        if (this.mongoServer.notPaid > 0) {
+            logger.warn(`caution: ${this.mongoServer.notPaid} payments not paid yet.`)
+        }
         this.mongoServer.addMiners(poolMiners)
     }
     public getPoolMiners(minersCount: number) {

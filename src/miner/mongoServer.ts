@@ -2,12 +2,14 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
+    public notPaid: number
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private maxCountPerQuery = 10
     private client: MongoClient
     private db: Db
     constructor() {
+        this.notPaid = 0
         this.initialize()
     }
     public async initialize() {
