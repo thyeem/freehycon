@@ -1,11 +1,10 @@
 import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
-import { Hash } from "../util/hash"
+import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private maxCountPerQuery = 10
-
     private client: MongoClient
     private db: Db
     constructor() {
@@ -17,15 +16,15 @@ export class MongoServer {
     }
     public async putWork(block: Block, prehash: Uint8Array) {
         const collection = this.db.collection(`Works`)
-        const jsonInfo = { block: JSON.stringify(block), prehash: JSON.stringify(prehash) }
-        const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash), info: jsonInfo }
+        const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
         await collection.remove({})
         await collection.insertOne(putWorkData)
     }
     public async pollingPutWork() {
+        const returnRows: any[] = []
+        if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Works`)
         const rows = await collection.find({}).limit(this.maxCountPerQuery).toArray()
-        const returnRows = []
         for (const one of rows) {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
@@ -35,13 +34,14 @@ export class MongoServer {
     }
     public async submitBlock(block: Block, prehash: Uint8Array) {
         const collection = this.db.collection(`Submits`)
-        const submit = { block: block.encode(), prehash: Buffer.from(prehash), info: JSON.stringify(block) }
+        const submit = { block: block.encode(), prehash: Buffer.from(prehash) }
         await collection.insertOne(submit)
     }
     public async pollingSubmitWork() {
+        const returnRows: any[] = []
+        if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Submits`)
         const rows = await collection.find({}).limit(1000).toArray()
-        const returnRows = []
         for (const one of rows) {
             collection.deleteOne({ _id: one._id })
             const block = Block.decode(one.block.buffer)
@@ -51,14 +51,13 @@ export class MongoServer {
         }
         return returnRows
     }
-    public async addMinedBlock(block: Block) {
+    public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
-        const mined = { block: block.encode(), info: JSON.stringify(block) }
-        await collection.insertOne(mined)
+        await collection.insertOne(block)
     }
-    public async writeMiners(minersInfo: any) {
+    public async addMiners(minersInfo: any) {
         if (this.db === undefined) { return }
-        const info = this.db.collection(`Info`)
+        const info = this.db.collection(`InfoPool`)
         await info.remove({})
         await info.insertOne({
             minersCount: minersInfo.minersCount,
@@ -71,18 +70,22 @@ export class MongoServer {
     }
     public async payWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
-        info.insertOne(wageInfo)
+        info.insertOne({
+            blockHash: wageInfo.blockHash,
+            rewardBase: wageInfo.rewardBase,
+            roundHash: wageInfo.roundHash,
+        })
     }
     public async pollingPayWages() {
+        const returnRows: any[] = []
+        if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`PayWages`)
         const rows = await collection.find({}).limit(1000).toArray()
-        const returnRows = []
-        for (const one of rows) {
-            collection.deleteOne({ _id: one._id })
-            const hash = new Hash(Buffer.from(one.blockHash.buffer))
-            one.blockHash = hash
-            returnRows.push(one)
-        }
+        for (const one of rows) { returnRows.push(one) }
         return returnRows
+    }
+    public async deletePayWage(payId: string) {
+        const collection = this.db.collection(`PayWages`)
+        await collection.deleteOne({ _id: payId })
     }
 }

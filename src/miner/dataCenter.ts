@@ -43,8 +43,8 @@ export interface IPoolMiner {
     minerGroups: IMinerGroup[]
 }
 export interface IMinerGroup {
+    _id: string
     nodes: number
-    address: string
     hashrate: number
     hashshare: number
     elapsed: number
@@ -56,7 +56,7 @@ export interface IMinerReward {
     reward: number
     fee: number
 }
-interface IMinedBlocks {
+export interface IMinedBlocks {
     mainchain: boolean
     hash: string
     prevHash: string
@@ -67,7 +67,6 @@ export class DataCenter {
     public blicklist: Set<string>
     public minedBlocks: IMinedBlocks[]
     public rewardBase: Map<string, IMinerReward>
-    public payments: number
     public poolHashshare: number
     public poolHashrate: number
     public workerHash: number
@@ -82,22 +81,6 @@ export class DataCenter {
         this.minerG = new Map<string, IMinerGroup>()
         this.rewardBase = new Map<string, IMinerReward>()
         this.minedBlocks = []
-        this.payments = 0
-        this.init()
-    }
-    public init() {
-        if (fs.existsSync(this.minersFile)) {
-            const data = fs.readFileSync(this.minersFile)
-            const miners = JSON.parse(data.toString()).minerGroups
-            for (const miner of miners) {
-                this.minerG.set(miner.address, miner)
-            }
-        }
-        if (fs.existsSync(this.blocksFile)) {
-            const data = fs.readFileSync(this.blocksFile)
-            this.minedBlocks = JSON.parse(data.toString())
-        }
-        this.updateMinedBlocks()
     }
     public updateMinerInfo(miners: IMiner[]) {
         this.reset()
@@ -111,7 +94,7 @@ export class DataCenter {
             const elapsed = Date.now() - miner.tickLogin
             if (minerG === undefined) {
                 const newMinerG: IMinerGroup = {
-                    address: miner.address,
+                    _id: miner.address,
                     elapsed,
                     elapsedStr: formatTime(elapsed),
                     fee: miner.hashshare * miner.fee,
@@ -140,10 +123,8 @@ export class DataCenter {
         const minersCount = miners.length
         this.updateMinerInfo(miners)
         const poolMiners = this.getPoolMiners(minersCount)
-        const poolBlocks = this.getPoolBlocks()
-        logger.warn(`${this.minedBlocks.length} blocks mined | total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
-        this.writeFileJSON(poolMiners, poolBlocks)
-        this.mongoServer.writeMiners(poolMiners)
+        logger.warn(`total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
+        this.mongoServer.addMiners(poolMiners)
     }
     public getPoolMiners(minersCount: number) {
         const minerGroups: IMinerGroup[] = Array.from(this.minerG.values())
@@ -157,52 +138,6 @@ export class DataCenter {
             poolHashshare: this.poolHashshare,
         }
         return poolMiners
-    }
-    public getPoolBlocks() {
-        const poolBlocks = Array.from(this.minedBlocks).slice()
-        poolBlocks.sort((a, b) => {
-            return b.height - a.height
-        })
-        return poolBlocks
-    }
-    public writeFileJSON(poolMiners: IPoolMiner, poolBlocks: IMinedBlocks[]) {
-        try {
-            fs.writeFileSync(this.minersFile, JSON.stringify(poolMiners))
-            fs.writeFileSync(this.blocksFile, JSON.stringify(poolBlocks))
-        } catch (e) {
-            logger.warn(`failed to write miners/blocks JSON file: ${e}`)
-        }
-    }
-    public async addMinedBlock(block: Block) {
-        // const hash = new Hash(block.header)
-        // const status = await this.minerServer.consensus.getBlockStatus(hash)
-        // const height = await this.minerServer.consensus.getBlockHeight(hash)
-        // const newBlock: IMinedBlocks = {
-        //     hash: hash.toString(),
-        //     height,
-        //     mainchain: status === BlockStatus.MainChain,
-        //     prevHash: block.header.previousHash[0].toString(),
-        //     timestamp: block.header.timeStamp,
-        // }
-        // this.minedBlocks.unshift(newBlock)
-    }
-    public async updateMinedBlocks() {
-        // try {
-        //     const count = Math.min(this.minedBlocks.length, 10)
-        //     let n = 0
-        //     for (const block of this.minedBlocks) {
-        //         if (n >= count) { break }
-        //         const hash = Hash.decode(block.hash)
-        //         const status = await this.minerServer.consensus.getBlockStatus(hash)
-        //         block.mainchain = status === BlockStatus.MainChain
-        //         n++
-        //     }
-        // } catch (e) {
-        //     logger.error(`error in updating mined blocks: ${e}`)
-        // }
-        // setTimeout(async () => {
-        //     this.updateMinedBlocks()
-        // }, 300000)
     }
     public async clearBlacklist() {
         this.blicklist.clear()

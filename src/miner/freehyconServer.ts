@@ -16,7 +16,6 @@ import { MongoServer } from "./mongoServer"
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
 const logger = getLogger("FreeHyconServer")
-
 export enum MinerStatus {
     OnInterview = 0,
     Dayoff = 1,
@@ -103,26 +102,21 @@ export class FreeHyconServer {
     private readonly deferredTime = 360000
     private jobId: number
     private port: number
-    private minerServer: MinerServer
+    private mongoServer: MongoServer
     private stratum: any
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
     private dataCenter: DataCenter
-    private banker: Banker
     private ongoingJob: string
 
-    private mongoServer: MongoServer
-
-    constructor(mongoServer: MongoServer, minerServer: MinerServer, port: number = 9081) {
+    constructor(mongoServer: MongoServer, port: number = 9081) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
-        this.minerServer = minerServer
         this.mongoServer = mongoServer
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
         this.dataCenter = new DataCenter(this.mongoServer)
-        this.banker = new Banker(this.minerServer)
         this.jobId = 0
         this.init()
         this.runPollingJob()
@@ -137,12 +131,11 @@ export class FreeHyconServer {
         const foundWorks = await this.mongoServer.pollingPutWork()
         if (foundWorks.length > 0) {
             const found = foundWorks[0]
-            if (!(found.block instanceof Block)) { return }
             const newPrehash = found.prehash.toString("hex")
             if (newPrehash !== this.ongoingJob) {
                 this.ongoingJob = newPrehash
                 await this.putWork(found.block, found.prehash)
-                logger.warn(`Polling PutWork Prehash=${found.prehash.toString("hex")}`)
+                logger.warn(`Polling PutWork Prehash=${found.prehash.toString("hex").slice(0, 12)}`)
             }
         }
     }
@@ -303,13 +296,10 @@ export class FreeHyconServer {
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                // this.minerServer.submitBlock(minedBlock).then(() => { this.dataCenter.addMinedBlock(minedBlock) })
                 this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash())
                 const { miners, rewardBase, roundHash } = this.newRound()
                 const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.payWages({ blockHash: blockHash.toBuffer(), rewardBase, roundHash })
-                this.payWages(blockHash, rewardBase, roundHash)
-
+                this.mongoServer.payWages({ blockHash: blockHash.toString(), rewardBase, roundHash })
             }
             return true
         } catch (e) {
@@ -379,24 +369,22 @@ export class FreeHyconServer {
         for (const [key, miner] of this.mapMiner) { miner.hashshare = 0 }
         return { miners, rewardBase, roundHash }
     }
-    private async payWages(hash: Hash, rewardBase: Map<string, IMinerReward>, roundHash: number) {
-        this.dataCenter.payments++
-        this.newRound()
-        /*  setTimeout(async () => {
-              const status = await this.minerServer.consensus.getBlockStatus(hash)
-              const height = await this.minerServer.consensus.getBlockHeight(hash)
-              if (status === BlockStatus.MainChain) {
-                  this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
-              }
-              this.dataCenter.payments--
-          }, this.deferredTime)*/
-    }
+    // private async payWages(hash: Hash, rewardBase: Map<string, IMinerReward>, roundHash: number) {
+    // this.newRound()
+    /*  setTimeout(async () => {
+          const status = await this.minerServer.consensus.getBlockStatus(hash)
+          const height = await this.minerServer.consensus.getBlockHeight(hash)
+          if (status === BlockStatus.MainChain) {
+              this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
+          }
+          this.dataCenter.payments--
+      }, this.deferredTime)*/
+    // }
     private async releaseData() {
         const miners = Array.from(this.mapMiner.values())
         this.dataCenter.release(miners)
         setTimeout(async () => {
             this.releaseData()
         }, 10000)
-        if (this.dataCenter.payments > 0) { logger.warn(`caution: ${this.dataCenter.payments} payment(s) remain.`) }
     }
 }

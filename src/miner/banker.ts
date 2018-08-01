@@ -15,7 +15,6 @@ interface ISendTx {
     nonce: number
 }
 const logger = getLogger("Banker")
-
 // H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP
 const bankerRecover = {
     hint: "NOHINT",

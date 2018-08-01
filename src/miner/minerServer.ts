@@ -8,10 +8,12 @@ import { DBBlock } from "../consensus/database/dbblock"
 import { WorldState } from "../consensus/database/worldState"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
 import { IConsensus } from "../consensus/iconsensus"
+import { BlockStatus } from "../consensus/sync"
 import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
-
+import { Banker } from "./banker"
+import { IMinedBlocks, IMinerReward } from "./dataCenter"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("Miner")
 
@@ -25,21 +27,20 @@ export class MinerServer {
         target = (target === undefined) ? DifficultyAdjuster.getTarget(difficulty) : target
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
+    public mongoServer: MongoServer
     public txpool: ITxPool
     public consensus: IConsensus
     public network: INetwork
-
-    public mongoServer: MongoServer
     private intervalId: NodeJS.Timer
     private worldState: WorldState
-
+    private banker: Banker
     public constructor(txpool: ITxPool, worldState: WorldState, consensus: IConsensus, network: INetwork, cpuMiners: number, stratumPort: number) {
         this.txpool = txpool
         this.worldState = worldState
         this.consensus = consensus
         this.network = network
         this.mongoServer = new MongoServer()
-
+        this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         this.runPollingSubmit()
     }
@@ -54,16 +55,37 @@ export class MinerServer {
         const foundWorks = await this.mongoServer.pollingSubmitWork()
         if (foundWorks.length > 0) {
             for (const found of foundWorks) {
-                if (!(found.block instanceof Block)) { continue }
                 await this.submitBlock(found.block)
-                this.mongoServer.addMinedBlock(found.block)
+                const hash = new Hash(found.block.header)
+                const status = await this.consensus.getBlockStatus(hash)
+                const height = await this.consensus.getBlockHeight(hash)
+                const newBlock: IMinedBlocks = {
+                    hash: hash.toString(),
+                    height,
+                    mainchain: status === BlockStatus.MainChain,
+                    prevHash: found.block.header.previousHash[0].toString(),
+                    timestamp: found.block.header.timeStamp,
+                }
+                this.mongoServer.addMinedBlock(newBlock)
             }
         }
     }
     public async pollingPayWages() {
-        const wages = await this.mongoServer.pollingPayWages()
-        if (wages.length > 0) {
-            for (const wage of wages) { }
+        const pays = await this.mongoServer.pollingPayWages()
+        if (pays.length > 0) {
+            for (const pay of pays) {
+                setTimeout(async () => {
+                    const hash = Hash.decode(pay.blockHash)
+                    const status = await this.consensus.getBlockStatus(hash)
+                    const height = await this.consensus.getBlockHeight(hash)
+                    if (status === BlockStatus.MainChain) {
+                        const rewardBase = new Map<string, IMinerReward>()
+                        for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
+                        this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
+                    }
+                    await this.mongoServer.deletePayWage(pay._id)
+                }, 10000)
+            }
         }
     }
     public async submitBlock(block: Block) {
