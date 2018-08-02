@@ -10,6 +10,7 @@
     },
     "scripts": {
         "stratum": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --freehycon",
+        "stratum2": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9082 --api --api_port=2442 --cpuMiners=0 --freehycon",
         "hycon": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0",
         "seed": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=freehycon --bootstrap",
         "freehycon": "rm -rf peerdbsql && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --cpuMiners=0 --peer minehycon.com:8148 --peer poolhyc.codev.kr:8148 --peer pool.hplorer.com:8148",
