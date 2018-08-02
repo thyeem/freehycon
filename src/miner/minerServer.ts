@@ -42,14 +42,28 @@ export class MinerServer {
         this.mongoServer = new MongoServer()
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
-        this.runPollingSubmit()
+        setTimeout(async () => {
+            await this.runPollingSubmit()
+            await this.runPollingUpdateBlockStatus()
+        }, 5000)
     }
     public async runPollingSubmit() {
         await this.pollingSubmit()
         await this.pollingPayWages()
-        setTimeout(async () => {
-            await this.runPollingSubmit()
-        }, 2000)
+        setTimeout(async () => { await this.runPollingSubmit() }, 2000)
+    }
+    public async runPollingUpdateBlockStatus() {
+        this.updateBlockStatus()
+        setTimeout(() => { this.runPollingUpdateBlockStatus() }, 600000)
+    }
+    public async updateBlockStatus() {
+        const rows = await this.mongoServer.getMinedBlocks()
+        for (const row of rows) {
+            const hash = Hash.decode(row.hash)
+            const status = await this.consensus.getBlockStatus(hash)
+            const isMainchain = status === BlockStatus.MainChain
+            await this.mongoServer.updateBlockStatus(row.hash, isMainchain)
+        }
     }
     public async pollingSubmit() {
         const foundWorks = await this.mongoServer.pollingSubmitWork()
@@ -74,23 +88,24 @@ export class MinerServer {
         const pays = await this.mongoServer.pollingPayWages()
         if (pays.length > 0) {
             for (const pay of pays) {
-                setTimeout(async () => {
-                    const hash = Hash.decode(pay.blockHash)
-                    const status = await this.consensus.getBlockStatus(hash)
-                    const height = await this.consensus.getBlockHeight(hash)
-                    if (status === BlockStatus.MainChain) {
-                        const rewardBase = new Map<string, IMinerReward>()
-                        for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
-                        this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
-                    }
-                    this.mongoServer.notPaid--
-                }, 360000)
+                const hash = Hash.decode(pay.blockHash)
+                const status = await this.consensus.getBlockStatus(hash)
+                const height = await this.consensus.getBlockHeight(hash)
+                const tip = this.consensus.getBlocksTip()
+                const isMainchain = status === BlockStatus.MainChain
+                if (height + 50 > tip.height && isMainchain) {
+                    const rewardBase = new Map<string, IMinerReward>()
+                    for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
+                    this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
+                } else {
+                    this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
+                }
                 await this.mongoServer.deletePayWage(pay._id)
-                this.mongoServer.notPaid++
             }
         }
     }
     public async submitBlock(block: Block) {
+        this.network.broadcastBlocks([block])
         if (await this.consensus.putBlock(block)) {
             this.network.broadcastBlocks([block])
         }
@@ -119,7 +134,6 @@ export class MinerServer {
     }
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
-
         const { stateTransition: { currentStateRoot }, validTxs, invalidTxs } = await this.worldState.next(previousDBBlock.header.stateRoot, miner)
         this.txpool.removeTxs(invalidTxs)
         const block = new Block({
@@ -134,7 +148,6 @@ export class MinerServer {
             }),
             txs: validTxs,
         })
-
         const prehash = block.header.preHash()
         this.mongoServer.putWork(block, prehash)
     }

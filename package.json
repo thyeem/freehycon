@@ -14,7 +14,7 @@
         "seed": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=freehycon --bootstrap",
         "freehycon": "rm -rf peerdbsql && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --cpuMiners=0 --peer minehycon.com:8148 --peer poolhyc.codev.kr:8148 --peer pool.hplorer.com:8148",
         "protogen": "pbjs -t static-module -w commonjs -o src/serialization/proto.js proto/main.proto &&  pbts -o src/serialization/proto.d.ts src/serialization/proto.js && ./src/serialization/trim_null.sh",
-        "debug": "./node_modules/.bin/ts-node --inspect=9231 --inspect-brk src/main.ts  --port=8148 --str_port=9081 --cpuMiners=3 --api --api_port=2442 --networkid=`git rev-parse HEAD` --bootstrap",
+        "debug": "./node_modules/.bin/ts-node --inspect=9231 --inspect-brk src/main.ts  --port=8148 --str_port=9081 --cpuMiners=3 --api --api_port=2442 --networkid=`git rev-parse HEAD` --bootstrap --freehycon",
         "debugTests": "./node_modules/.bin/ts-node  --inspect=9230 --inspect-brk  test/runner.ts",
         "test": "rm -rf build && tsc && istanbul cover node_modules/jasmine/bin/jasmine.js -x **/proto.*  -- --config=jasmine.json && remap-istanbul -i ./coverage/coverage.json -o ./coverage/remap-report -t html",
         "clear": "rm -rf blockdb* worldstate* rawblock* txDB* peerdb* minedDB*",

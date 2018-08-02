@@ -120,9 +120,6 @@ export class DataCenter {
         this.updateMinerInfo(miners)
         const poolMiners = this.getPoolMiners(minersCount)
         logger.warn(`total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
-        if (this.mongoServer.notPaid > 0) {
-            logger.warn(`caution: ${this.mongoServer.notPaid} payments not paid yet.`)
-        }
         this.mongoServer.addMiners(poolMiners)
     }
     public getPoolMiners(minersCount: number) {

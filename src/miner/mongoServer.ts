@@ -2,14 +2,12 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
-    public notPaid: number
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private maxCountPerQuery = 10
     private client: MongoClient
     private db: Db
     constructor() {
-        this.notPaid = 0
         this.initialize()
     }
     public async initialize() {
@@ -49,7 +47,6 @@ export class MongoServer {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
             returnRows.push({ block, prehash })
-
         }
         return returnRows
     }
@@ -66,9 +63,11 @@ export class MongoServer {
             poolHashrate: minersInfo.poolHashrate,
             poolHashshare: minersInfo.poolHashshare,
         })
-        const miners = this.db.collection(`MinerGroups`)
-        await miners.remove({})
-        await miners.insertMany(minersInfo.minerGroups)
+        if (minersInfo.minerGroups.length > 0) {
+            const miners = this.db.collection(`MinerGroups`)
+            await miners.remove({})
+            await miners.insertMany(minersInfo.minerGroups)
+        }
     }
     public async payWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
@@ -82,12 +81,23 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`PayWages`)
-        const rows = await collection.find({}).limit(1000).toArray()
+        const rows = await collection.find({}).limit(100).toArray()
         for (const one of rows) { returnRows.push(one) }
         return returnRows
     }
     public async deletePayWage(payId: string) {
         const collection = this.db.collection(`PayWages`)
         await collection.deleteOne({ _id: payId })
+    }
+
+    public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
+        const collection = this.db.collection(`MinedBlocks`)
+        await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } }, { upsert: false })
+    }
+
+    public async getMinedBlocks(): Promise<any[]> {
+        const collection = this.db.collection(`MinedBlocks`)
+        const rows = await collection.find({}).limit(50).toArray()
+        return rows
     }
 }

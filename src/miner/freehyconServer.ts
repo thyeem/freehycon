@@ -93,7 +93,7 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     public static readonly freqDayoff = 40
-    private readonly diffcultyInspector = 0.005
+    private readonly diffcultyInspector = 0.0001
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
@@ -121,9 +121,7 @@ export class FreeHyconServer {
     }
     public runPollingJob() {
         this.pollingJob()
-        setTimeout(() => {
-            this.runPollingJob()
-        }, 100)
+        setTimeout(() => { this.runPollingJob() }, 100)
     }
     public async pollingJob() {
         const foundWorks = await this.mongoServer.pollingPutWork()
@@ -295,6 +293,7 @@ export class FreeHyconServer {
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash())
+                this.stop()
                 const { miners, rewardBase, roundHash } = this.newRound()
                 const blockHash = new Hash(minedBlock.header)
                 this.mongoServer.payWages({ blockHash: blockHash.toString(), rewardBase, roundHash })
@@ -367,17 +366,6 @@ export class FreeHyconServer {
         for (const [key, miner] of this.mapMiner) { miner.hashshare = 0 }
         return { miners, rewardBase, roundHash }
     }
-    // private async payWages(hash: Hash, rewardBase: Map<string, IMinerReward>, roundHash: number) {
-    // this.newRound()
-    /*  setTimeout(async () => {
-          const status = await this.minerServer.consensus.getBlockStatus(hash)
-          const height = await this.minerServer.consensus.getBlockHeight(hash)
-          if (status === BlockStatus.MainChain) {
-              this.banker.distributeIncome(240, hash.toString(), height, rewardBase, roundHash)
-          }
-          this.dataCenter.payments--
-      }, this.deferredTime)*/
-    // }
     private async releaseData() {
         const miners = Array.from(this.mapMiner.values())
         this.dataCenter.release(miners)

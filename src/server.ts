@@ -90,7 +90,7 @@ export class Server {
             const sync = new Sync(syncPeer, this.consensus, this.network.version)
             await sync.sync()
         }
-        setTimeout(() => this.runSync(), 2000)
+        setTimeout(() => this.runSync(), 500)
         logger.debug(`end sync`)
     }
 }
