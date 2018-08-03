@@ -50,7 +50,7 @@ export class MinerServer {
     public async runPollingSubmit() {
         await this.pollingSubmit()
         await this.pollingPayWages()
-        setTimeout(async () => { await this.runPollingSubmit() }, 100)
+        setTimeout(async () => { await this.runPollingSubmit() }, 1000)
     }
     public async runPollingUpdateBlockStatus() {
         this.updateBlockStatus()
@@ -97,10 +97,10 @@ export class MinerServer {
                     const rewardBase = new Map<string, IMinerReward>()
                     for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
                     this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
+                    await this.mongoServer.deletePayWage(pay._id)
                 } else {
                     this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
                 }
-                await this.mongoServer.deletePayWage(pay._id)
             }
         }
     }

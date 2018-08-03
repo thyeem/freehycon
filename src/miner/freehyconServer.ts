@@ -306,7 +306,7 @@ export class FreeHyconServer {
             }
             return true
         } catch (e) {
-            throw new Error(`Fail to submit nonce: ${e}`)
+            logger.error(`Fail to submit nonce: ${e}`)
         }
     }
     private keepWorkingTest(miner: IMiner) {
