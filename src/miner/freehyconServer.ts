@@ -9,8 +9,8 @@ import { BlockStatus } from "../consensus/sync"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { DataCenter, IMinerReward } from "./dataCenter"
-import { MinerInspector } from "./minerInspector"
-import { MinerServer } from "./minerServer"
+//import { MinerInspector } from "./minerInspector"
+//import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
 
 // tslint:disable-next-line:no-var-requires
@@ -111,7 +111,11 @@ export class FreeHyconServer {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.mongoServer = mongoServer
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
+        this.stratum = new LibStratum({
+
+
+            settings: { hostname: 'localhost', host: 'localhost', port: this.port, toobusy: 1000 }
+        })
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
         this.dataCenter = new DataCenter(this.mongoServer)

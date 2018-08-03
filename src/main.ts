@@ -182,10 +182,7 @@ async function main() {
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
 
-    if (globalOptions.freehycon !== undefined) {
-        runFreehycon(globalOptions.str_port)
-        return
-    }
+
     if (globalOptions.lite === undefined || globalOptions.lite) {
         const hycon = new Server()
         hycon.run()
