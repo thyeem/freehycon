@@ -106,9 +106,7 @@ export class MinerServer {
     }
     public async submitBlock(block: Block) {
         this.network.broadcastBlocks([block])
-        if (await this.consensus.putBlock(block)) {
-            this.network.broadcastBlocks([block])
-        }
+        await this.consensus.putBlock(block)
     }
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
         return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }

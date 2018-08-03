@@ -10,7 +10,7 @@ export class MinerInspector {
     public readonly numJobBuffer: number = 10
     public readonly medianTime = 5000
     public readonly minDeltaTime = this.medianTime * 0.005
-    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 3
+    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 2
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -21,6 +21,7 @@ export class MinerInspector {
     public jobTimer: IJobTimer
     public mapJob: Map<number, IJob>
     public mapDemote: Map<number, NodeJS.Timer>
+    public warning: number
 
     constructor(difficulty: number, alpha: number) {
         this.jobId = 0
@@ -33,6 +34,7 @@ export class MinerInspector {
         this.mapJob = new Map<number, IJob>()
         this.mapDemote = new Map<number, NodeJS.Timer>()
         this.submits = 0
+        this.warning = 0
     }
     public adjustDifficulty() {
         let timeDelta: number
@@ -60,11 +62,16 @@ export class MinerInspector {
     public timerDemotion(freehycon: FreeHyconServer, miner: IMiner, jobId: number) {
         const timerId = setTimeout(() => {
             this.stop()
-            this.difficulty *= 2
-            this.tEMA = this.targetTime
-            this.pEMA = this.difficulty
+            this.warning++
+            if (this.warning >= 3) {
+                this.difficulty *= 2
+                if (this.difficulty > 0.01) { this.difficulty = 0.01 }
+                this.tEMA = this.targetTime
+                this.pEMA = this.difficulty
+                this.submits = Math.max(1, this.submits - 10)
+                this.warning = 0
+            }
             this.jobTimer = { start: 0, end: 0, lock: false }
-            this.submits += 5
             freehycon.putWorkOnInspector(miner)
         }, this.maxDeltaTime)
         this.mapDemote.set(jobId, timerId)
@@ -72,7 +79,8 @@ export class MinerInspector {
     public clearDemotion() {
         for (const [jobId, timerId] of this.mapDemote) {
             clearTimeout(timerId)
+            this.mapDemote.delete(jobId)
         }
-        this.mapDemote.clear()
+        this.warning = 0
     }
 }
