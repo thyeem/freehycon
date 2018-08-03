@@ -1,5 +1,5 @@
 import { getLogger } from "log4js"
-import { IJob } from "./freehyconServer"
+import { FreeHyconServer, IJob, IMiner } from "./freehyconServer"
 const logger = getLogger("MinerInspector")
 interface IJobTimer {
     start: number
@@ -10,7 +10,7 @@ export class MinerInspector {
     public readonly numJobBuffer: number = 10
     public readonly medianTime = 5000
     public readonly minDeltaTime = this.medianTime * 0.005
-    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 2
+    public readonly maxDeltaTime = this.medianTime / Math.LN2 * 3
     public alpha: number
     public targetTime: number
     public tEMA: number
@@ -20,6 +20,7 @@ export class MinerInspector {
     public submits: number
     public jobTimer: IJobTimer
     public mapJob: Map<number, IJob>
+    public mapDemote: Map<number, NodeJS.Timer>
 
     constructor(difficulty: number, alpha: number) {
         this.jobId = 0
@@ -30,6 +31,7 @@ export class MinerInspector {
         this.pEMA = this.difficulty
         this.jobTimer = { start: 0, end: 0, lock: false }
         this.mapJob = new Map<number, IJob>()
+        this.mapDemote = new Map<number, NodeJS.Timer>()
         this.submits = 0
     }
     public adjustDifficulty() {
@@ -53,8 +55,24 @@ export class MinerInspector {
         return newEMA
     }
     public stop() {
-        for (const [key, miner] of this.mapJob) {
-            miner.solved = true
+        for (const [key, miner] of this.mapJob) { miner.solved = true }
+    }
+    public timerDemotion(freehycon: FreeHyconServer, miner: IMiner, jobId: number) {
+        const timerId = setTimeout(() => {
+            this.stop()
+            this.difficulty *= 2
+            this.tEMA = this.targetTime
+            this.pEMA = this.difficulty
+            this.jobTimer = { start: 0, end: 0, lock: false }
+            this.submits += 5
+            freehycon.putWorkOnInspector(miner)
+        }, this.maxDeltaTime)
+        this.mapDemote.set(jobId, timerId)
+    }
+    public clearDemotion() {
+        for (const [jobId, timerId] of this.mapDemote) {
+            clearTimeout(timerId)
         }
+        this.mapDemote.clear()
     }
 }

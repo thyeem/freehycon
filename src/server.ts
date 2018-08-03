@@ -86,7 +86,7 @@ export class Server {
         if (totalworks.length > 0) {
             const maxRemoteTotalwork = Math.max(...totalworks)
             const syncPeer = peers[totalworks.indexOf(maxRemoteTotalwork)]
-            logger.warn(`maxTotalwork of syncPeer: ${maxRemoteTotalwork}`)
+            logger.warn(`syncPeer: ${syncPeer.peer.getInfo()}`)
             const sync = new Sync(syncPeer, this.consensus, this.network.version)
             await sync.sync()
         }
