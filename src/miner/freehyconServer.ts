@@ -93,8 +93,8 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     public static readonly freqDayoff = 40
-    private readonly diffcultyInspector = 0.0001
-    private readonly alphaInspector = 0.055
+    private readonly diffcultyInspector = 0.0005
+    private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
     private readonly numDayoffProblems = 4
@@ -166,7 +166,7 @@ export class FreeHyconServer {
             miner.inspector.jobTimer.lock = true
             miner.inspector.jobTimer.start = Date.now()
         }
-        if (miner.status === MinerStatus.OnInterview) { miner.inspector.timerDemotion(this, miner, newJob.id) }
+        // if (miner.status === MinerStatus.OnInterview) { miner.inspector.timerDemotion(this, miner, newJob.id) }
     }
     private init() {
         this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
@@ -201,7 +201,7 @@ export class FreeHyconServer {
                         result = await this.completeWork(jobId, req.params.nonce)
                     } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
                         miner.inspector.jobTimer.end = Date.now()
-                        if (miner.status === MinerStatus.OnInterview) { miner.inspector.clearDemotion() }
+                        // if (miner.status === MinerStatus.OnInterview) { miner.inspector.clearDemotion() }
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (result) {
                             this.keepWorkingTest(miner)
