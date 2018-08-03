@@ -159,6 +159,15 @@ export class FreeHyconServer {
     public stop() {
         for (const [jobId, job] of this.mapJob) { job.solved = true }
     }
+    public async putWorkOnInspector(miner: IMiner) {
+        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
+        await this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+        if (!miner.inspector.jobTimer.lock) {
+            miner.inspector.jobTimer.lock = true
+            miner.inspector.jobTimer.start = Date.now()
+        }
+        miner.inspector.timerDemotion(this, miner, newJob.id)
+    }
     private init() {
         this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
             let miner = this.mapMiner.get(socket.id)
@@ -194,6 +203,7 @@ export class FreeHyconServer {
                         miner.inspector.jobTimer.end = Date.now()
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (result) {
+                            miner.inspector.clearDemotion()
                             this.keepWorkingTest(miner)
                         }
                     }
@@ -259,14 +269,6 @@ export class FreeHyconServer {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
         )
-    }
-    private async putWorkOnInspector(miner: IMiner) {
-        const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-        await this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
-        if (!miner.inspector.jobTimer.lock) {
-            miner.inspector.jobTimer.lock = true
-            miner.inspector.jobTimer.start = Date.now()
-        }
     }
     private async completeWork(jobId: number, nonceStr: string, miner?: IMiner): Promise<boolean> {
         try {
