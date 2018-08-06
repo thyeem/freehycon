@@ -17,9 +17,10 @@ import { MongoServer } from "./mongoServer"
 const LibStratum = require("stratum").Server
 const logger = getLogger("FreeHyconServer")
 export enum MinerStatus {
-    OnInterview = 0,
-    Dayoff = 1,
-    Working = 2,
+    Applied = 0,
+    OnInterview = 1,
+    Dayoff = 2,
+    Working = 3,
 }
 export interface IJob {
     block: Block
@@ -92,7 +93,7 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 40
+    public static readonly freqDayoff = 100
     private readonly diffcultyInspector = 0.0005
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
@@ -148,6 +149,8 @@ export class FreeHyconServer {
                         this.notifyJob(miner.socket, getRandomIndex(), newJob)
                     }
                     continue
+                } else if (miner.status === MinerStatus.Applied) {
+
                 } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
                     this.putWorkOnInspector(miner)
                 }
@@ -179,10 +182,9 @@ export class FreeHyconServer {
                 case "authorize":
                     const address = req.params[0]
                     const remoteIP = miner.socket.remoteAddress
-                    const blacklist = this.dataCenter.blicklist.has(remoteIP)
+                    const blacklist = this.dataCenter.blacklist.has(remoteIP)
                     if (blacklist) {
-                        logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
-                        // this.stratum.emit("close", socket.id)
+                        this.banInvalidUsers(miner)
                     } else {
                         logger.warn(`Authorizing miner: ${address}`)
                         miner.address = checkAddress(address)
@@ -280,17 +282,8 @@ export class FreeHyconServer {
             const nonce = hexToLongLE(nonceStr)
             const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
             if (!nonceCheck) {
-                const remoteIP = miner.socket.remoteAddress
-                const socketId = miner.socket.id
-                const address = miner.socket.address
-                try {
-                    this.stratum.closeConnection(socketId)
-                } catch (e) {
-                    logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
-                    logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
-                }
-                this.mapMiner.delete(socketId)
-                this.dataCenter.blicklist.add(remoteIP)
+                logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
+                this.banInvalidUsers(miner)
                 return false
             }
             job.solved = true
@@ -312,6 +305,18 @@ export class FreeHyconServer {
         } catch (e) {
             logger.error(`Fail to submit nonce: ${e}`)
         }
+    }
+    private banInvalidUsers(miner: IMiner) {
+        const remoteIP = miner.socket.remoteAddress
+        const socketId = miner.socket.id
+        const address = miner.socket.address
+        try {
+            this.stratum.closeConnection(socketId)
+        } catch (e) {
+            logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
+        }
+        this.mapMiner.delete(socketId)
+        this.dataCenter.blacklist.add(remoteIP)
     }
     private keepWorkingTest(miner: IMiner) {
         miner.inspector.adjustDifficulty()

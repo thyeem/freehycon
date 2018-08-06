@@ -29,7 +29,7 @@ export class Banker {
     private carryover: number
     private banker: Wallet
     private minerServer: MinerServer
-    private readonly txFee: number = 0.000000001
+    private readonly txFee: number = 0.000038317
     private readonly cofounder = ["H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C", "H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ"]
 
     constructor(minerServer: MinerServer) {
