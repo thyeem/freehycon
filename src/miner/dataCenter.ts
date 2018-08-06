@@ -60,7 +60,6 @@ export interface IMinedBlocks {
     height: number
 }
 export class DataCenter {
-    public blacklist: Set<string>
     public minedBlocks: IMinedBlocks[]
     public rewardBase: Map<string, IMinerReward>
     public poolHashshare: number
@@ -73,7 +72,6 @@ export class DataCenter {
     private readonly blocksFile = "blocks.json"
     constructor(mongoServer: MongoServer) {
         this.mongoServer = mongoServer
-        this.blacklist = new Set<string>()
         this.minerG = new Map<string, IMinerGroup>()
         this.rewardBase = new Map<string, IMinerReward>()
         this.minedBlocks = []
@@ -134,12 +132,6 @@ export class DataCenter {
             poolHashshare: this.poolHashshare,
         }
         return poolMiners
-    }
-    public async clearBlacklist() {
-        this.blacklist.clear()
-        setTimeout(async () => {
-            this.clearBlacklist()
-        }, 60000)
     }
     private reset() {
         this.poolHashshare = 0

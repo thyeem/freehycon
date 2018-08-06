@@ -33,6 +33,7 @@ export interface IJob {
 }
 export interface IMiner {
     socket: any
+    workerId: string
     address: string
     fee: number
     hashrate: number
@@ -94,7 +95,7 @@ const fakeBlock = new Block({
 })
 export class FreeHyconServer {
     public static readonly freqDayoff = 100
-    private readonly diffcultyInspector = 0.0005
+    private readonly diffcultyInspector = 0.01
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
     private readonly numInterviewProblems = 100
@@ -105,8 +106,9 @@ export class FreeHyconServer {
     private stratum: any
     private mapMiner: Map<string, IMiner>
     private mapJob: Map<number, IJob>
+    private blacklist: Set<string>
     private dataCenter: DataCenter
-    private ongoingJob: string
+    private ongoingPrehash: string
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
@@ -120,6 +122,7 @@ export class FreeHyconServer {
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
         this.dataCenter = new DataCenter(this.mongoServer)
+        this.blacklist = new Set<string>()
         this.jobId = 0
         this.init()
         this.runPollingJob()
@@ -133,9 +136,9 @@ export class FreeHyconServer {
         if (foundWorks.length > 0) {
             const found = foundWorks[0]
             const newPrehash = found.prehash.toString("hex")
-            if (newPrehash !== this.ongoingJob) {
-                this.ongoingJob = newPrehash
-                await this.putWork(found.block, found.prehash)
+            if (newPrehash !== this.ongoingPrehash) {
+                this.ongoingPrehash = newPrehash
+                this.putWork(found.block, found.prehash)
                 logger.warn(`Polling PutWork Prehash=${found.prehash.toString("hex").slice(0, 12)}`)
             }
         }
@@ -173,7 +176,6 @@ export class FreeHyconServer {
             miner.inspector.jobTimer.lock = true
             miner.inspector.jobTimer.start = Date.now()
         }
-        // if (miner.status === MinerStatus.OnInterview) { miner.inspector.timerDemotion(this, miner, newJob.id) }
     }
     private init() {
         this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
@@ -184,14 +186,15 @@ export class FreeHyconServer {
                     deferred.resolve([socket.id.toString(), "0", "0", 4])
                     break
                 case "authorize":
-                    const address = req.params[0]
-                    const remoteIP = miner.socket.remoteAddress
-                    const blacklist = this.dataCenter.blacklist.has(remoteIP)
+                    const [address, workerId] = req.params.slice(0, 2)
+                    const remoteIP = miner.socket.socket.remoteAddress
+                    const blacklist = this.blacklist.has(remoteIP)
                     if (blacklist) {
                         this.banInvalidUsers(miner)
                     } else {
                         logger.warn(`Authorizing miner: ${address}`)
                         miner.address = checkAddress(address)
+                        miner.workerId = (workerId.trim() === "") ? miner.socket.id.slice(0, 6) : workerId.trim()
                         this.putWorkOnInspector(miner)
                     }
                     deferred.resolve([true])
@@ -208,7 +211,6 @@ export class FreeHyconServer {
                         result = await this.completeWork(jobId, req.params.nonce)
                     } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
                         miner.inspector.jobTimer.end = Date.now()
-                        // if (miner.status === MinerStatus.OnInterview) { miner.inspector.clearDemotion() }
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (result) {
                             this.keepWorkingTest(miner)
@@ -234,7 +236,7 @@ export class FreeHyconServer {
             logger.fatal(msg)
         })
         this.releaseData()
-        this.dataCenter.clearBlacklist()
+        this.clearBlacklist()
     }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
@@ -310,18 +312,6 @@ export class FreeHyconServer {
             logger.error(`Fail to submit nonce: ${e}`)
         }
     }
-    private banInvalidUsers(miner: IMiner) {
-        const remoteIP = miner.socket.remoteAddress
-        const socketId = miner.socket.id
-        const address = miner.socket.address
-        try {
-            this.stratum.closeConnection(socketId)
-        } catch (e) {
-            logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
-        }
-        this.mapMiner.delete(socketId)
-        this.dataCenter.blacklist.add(remoteIP)
-    }
     private keepWorkingTest(miner: IMiner) {
         miner.inspector.adjustDifficulty()
         this.measureMiner(miner)
@@ -353,9 +343,25 @@ export class FreeHyconServer {
             status: MinerStatus.OnInterview,
             tick: Date.now(),
             tickLogin: Date.now(),
+            workerId: "",
         }
         this.mapMiner.set(socket.id, miner)
         return this.mapMiner.get(socket.id)
+    }
+    private banInvalidUsers(miner: IMiner) {
+        if (miner.socket === undefined) { return }
+        const remoteIP = miner.socket.socket.remoteAddress
+        const socketId = miner.socket.id
+        const address = miner.address
+        try {
+            miner.socket.end()
+            miner.socket.unref()
+            miner.socket.destroy()
+        } catch (e) {
+            logger.fatal(`Banned invalid miner: ${address} | remoteIP: ${remoteIP}`)
+        }
+        this.mapMiner.delete(socketId)
+        this.blacklist.add(remoteIP)
     }
     private checkDayoff(miner: IMiner) {
         if (miner.career > 0x7FFFFFFF) { miner.career = 0 }
@@ -391,5 +397,11 @@ export class FreeHyconServer {
         setTimeout(async () => {
             this.releaseData()
         }, 10000)
+    }
+    private async clearBlacklist() {
+        this.blacklist.clear()
+        setTimeout(async () => {
+            this.clearBlacklist()
+        }, 60000)
     }
 }
