@@ -2,6 +2,11 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
+    public static readonly timeoutPutWork = 100
+    public static readonly timeoutSubmit = 1000
+    public static readonly timeoutPayWages = 10000
+    public static readonly timeoutUpdateBlockStatus = 1800000
+    public static readonly confirmations = 2
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private maxCountPerQuery = 10
