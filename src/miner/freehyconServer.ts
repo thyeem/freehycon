@@ -182,10 +182,11 @@ export class FreeHyconServer {
                     break
                 case "authorize":
                     const address = req.params[0]
-                    const blacklist = this.dataCenter.blicklist.has(address)
+                    const remoteIP = miner.socket.remoteAddress
+                    const blacklist = this.dataCenter.blicklist.has(remoteIP)
                     if (blacklist) {
-                        logger.warn(`Banned invalid miner: ${address}`)
-                        this.stratum.emit("close", socket.id)
+                        logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
+                        // this.stratum.emit("close", socket.id)
                     } else {
                         logger.warn(`Authorizing miner: ${address}`)
                         miner.address = checkAddress(address)
@@ -283,10 +284,17 @@ export class FreeHyconServer {
             const nonce = hexToLongLE(nonceStr)
             const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
             if (!nonceCheck) {
-                logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
-                this.stratum.emit("close", miner.socket.id)
-                this.dataCenter.blicklist.add(miner.address)
-                miner.socket.destory()
+                const remoteIP = miner.socket.remoteAddress
+                const socketId = miner.socket.id
+                const address = miner.socket.address
+                try {
+                    this.stratum.closeConnection(socketId)
+                } catch (e) {
+                    logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
+                    logger.warn(`Banned invalid miner: ${address} remoteIP: ${remoteIP}`)
+                }
+                this.mapMiner.delete(socketId)
+                this.dataCenter.blicklist.add(remoteIP)
                 return false
             }
             job.solved = true
