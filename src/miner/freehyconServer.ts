@@ -94,12 +94,14 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 100
+    public static readonly freqDayoff = 10
     private readonly diffcultyInspector = 0.01
     private readonly alphaInspector = 0.06
     private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 100
+    private readonly numInterviewProblems = 10
     private readonly numDayoffProblems = 4
+    private readonly timeoutClearBlacklist = 60000
+    private readonly timeoutReleaseData = 10000
     private jobId: number
     private port: number
     private mongoServer: MongoServer
@@ -114,20 +116,20 @@ export class FreeHyconServer {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.mongoServer = mongoServer
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 1000 } })
+        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
         this.mapJob = new Map<number, IJob>()
         this.mapMiner = new Map<string, IMiner>()
         this.dataCenter = new DataCenter(this.mongoServer)
         this.blacklist = new Set<string>()
         this.jobId = 0
         this.init()
-        this.runPollingJob()
+        this.runPollingPutWork()
     }
-    public runPollingJob() {
-        this.pollingJob()
-        setTimeout(() => { this.runPollingJob() }, 100)
+    public runPollingPutWork() {
+        this.pollingPutWork()
+        setTimeout(() => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
     }
-    public async pollingJob() {
+    public async pollingPutWork() {
         const foundWorks = await this.mongoServer.pollingPutWork()
         if (foundWorks.length > 0) {
             const found = foundWorks[0]
@@ -392,12 +394,12 @@ export class FreeHyconServer {
         this.dataCenter.release(miners)
         setTimeout(async () => {
             this.releaseData()
-        }, 10000)
+        }, this.timeoutReleaseData)
     }
     private async clearBlacklist() {
         this.blacklist.clear()
         setTimeout(async () => {
             this.clearBlacklist()
-        }, 60000)
+        }, this.timeoutClearBlacklist)
     }
 }

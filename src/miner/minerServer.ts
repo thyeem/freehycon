@@ -44,17 +44,21 @@ export class MinerServer {
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(async () => {
             await this.runPollingSubmit()
+            await this.runPollingPayWages()
             await this.runPollingUpdateBlockStatus()
         }, 5000)
     }
     public async runPollingSubmit() {
         await this.pollingSubmit()
+        setTimeout(async () => { await this.runPollingSubmit() }, MongoServer.timeoutSubmit)
+    }
+    public async runPollingPayWages() {
         await this.pollingPayWages()
-        setTimeout(async () => { await this.runPollingSubmit() }, 1000)
+        setTimeout(async () => { await this.runPollingPayWages() }, MongoServer.timeoutPayWages)
     }
     public async runPollingUpdateBlockStatus() {
-        this.updateBlockStatus()
-        setTimeout(() => { this.runPollingUpdateBlockStatus() }, 600000)
+        await this.updateBlockStatus()
+        setTimeout(async () => { await this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
     }
     public async updateBlockStatus() {
         const rows = await this.mongoServer.getMinedBlocks()
@@ -93,7 +97,7 @@ export class MinerServer {
                 const height = await this.consensus.getBlockHeight(hash)
                 const tip = this.consensus.getBlocksTip()
                 const isMainchain = status === BlockStatus.MainChain
-                if (height + 50 < tip.height) {
+                if (height + MongoServer.confirmations < tip.height) {
                     if (isMainchain) {
                         const rewardBase = new Map<string, IMinerReward>()
                         for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
