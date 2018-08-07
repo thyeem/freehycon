@@ -4,18 +4,17 @@ import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
     public static readonly timeoutPutWork = 100
     public static readonly timeoutSubmit = 1000
-    public static readonly timeoutPayWages = 10000
+    public static readonly timeoutPayWages = 60000
     public static readonly timeoutUpdateBlockStatus = 1800000
-    public static readonly confirmations = 2
+    public static readonly confirmations = 50
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
-    private maxCountPerQuery = 10
     private client: MongoClient
     private db: Db
     constructor() {
-        this.initialize()
+        this.init()
     }
-    public async initialize() {
+    public async init() {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
     }
@@ -29,7 +28,7 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Works`)
-        const rows = await collection.find({}).limit(this.maxCountPerQuery).toArray()
+        const rows = await collection.find({}).limit(100).toArray()
         for (const one of rows) {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
@@ -46,7 +45,7 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Submits`)
-        const rows = await collection.find({}).limit(1000).toArray()
+        const rows = await collection.find({}).limit(100).toArray()
         for (const one of rows) {
             collection.deleteOne({ _id: one._id })
             const block = Block.decode(one.block.buffer)
@@ -76,7 +75,7 @@ export class MongoServer {
     }
     public async payWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
-        info.insertOne({
+        await info.insertOne({
             blockHash: wageInfo.blockHash,
             rewardBase: wageInfo.rewardBase,
             roundHash: wageInfo.roundHash,
@@ -102,7 +101,7 @@ export class MongoServer {
 
     public async getMinedBlocks(): Promise<any[]> {
         const collection = this.db.collection(`MinedBlocks`)
-        const rows = await collection.find({}).limit(50).toArray()
+        const rows = await collection.find({}).limit(100).toArray()
         return rows
     }
 }
