@@ -5,10 +5,9 @@ import { Address } from "../common/address"
 import { Block } from "../common/block"
 import { BlockHeader } from "../common/blockHeader"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
-import { BlockStatus } from "../consensus/sync"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
-import { DataCenter, IMinerReward } from "./dataCenter"
+import { DataCenter } from "./dataCenter"
 import { MinerInspector } from "./minerInspector"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
@@ -17,7 +16,7 @@ import { MongoServer } from "./mongoServer"
 const LibStratum = require("stratum").Server
 const logger = getLogger("FreeHyconServer")
 export enum MinerStatus {
-    Applied = 0,
+    Intern = 0,
     OnInterview = 1,
     Dayoff = 2,
     Working = 3,
@@ -94,12 +93,16 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 10
-    private readonly diffcultyInspector = 0.01
-    private readonly alphaInspector = 0.06
+    public static readonly freqDayoff = 100
     private readonly numJobBuffer = 10
-    private readonly numInterviewProblems = 10
-    private readonly numDayoffProblems = 4
+    private readonly alphaIntern = 0.3
+    private readonly meanTimeIntern = 20000
+    private readonly diffcultyIntern = 1. / (100. * 0.001 * this.meanTimeIntern / Math.LN2)
+    private readonly alphaInterview = 0.06
+    private readonly meanTimeInterview = 20000
+    private readonly numInternProblems = 15
+    private readonly numInterviewProblems = 15
+    private readonly numDayoffProblems = 1
     private readonly timeoutClearBlacklist = 60000
     private readonly timeoutReleaseData = 10000
     private jobId: number
@@ -113,7 +116,6 @@ export class FreeHyconServer {
     private ongoingPrehash: string
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
-        logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.mongoServer = mongoServer
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
@@ -125,9 +127,9 @@ export class FreeHyconServer {
         this.init()
         this.runPollingPutWork()
     }
-    public runPollingPutWork() {
+    public async runPollingPutWork() {
         this.pollingPutWork()
-        setTimeout(() => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
+        setTimeout(async () => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
     }
     public async pollingPutWork() {
         const foundWorks = await this.mongoServer.pollingPutWork()
@@ -137,7 +139,7 @@ export class FreeHyconServer {
             if (newPrehash !== this.ongoingPrehash) {
                 this.ongoingPrehash = newPrehash
                 this.putWork(found.block, found.prehash)
-                logger.warn(`Polling PutWork Prehash=${found.prehash.toString("hex").slice(0, 12)}`)
+                logger.warn(`Polling PutWork: ${found.prehash.toString("hex").slice(0, 16)}`)
             }
         }
     }
@@ -154,9 +156,7 @@ export class FreeHyconServer {
                         this.notifyJob(miner.socket, getRandomIndex(), newJob)
                     }
                     continue
-                } else if (miner.status === MinerStatus.Applied) {
-
-                } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
+                } else { // miner.status === ( Intern or OnInterview or Dayoff )
                     this.putWorkOnInspector(miner)
                 }
             }
@@ -176,6 +176,7 @@ export class FreeHyconServer {
         }
     }
     private init() {
+        logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
             let miner = this.mapMiner.get(socket.id)
             if (miner === undefined) { miner = this.welcomeNewMiner(socket) }
@@ -207,7 +208,7 @@ export class FreeHyconServer {
                     let result = false
                     if (isWorking) {
                         result = await this.completeWork(jobId, req.params.nonce)
-                    } else { // miner.status === (MinerStatus.Dayoff || MinerStatus.Oninterview)
+                    } else { // miner.status === ( Intern or Oninterview or Dayoff )
                         miner.inspector.jobTimer.end = Date.now()
                         result = await this.completeWork(jobId, req.params.nonce, miner)
                         if (result) {
@@ -291,7 +292,7 @@ export class FreeHyconServer {
                 return false
             }
             job.solved = true
-            if (miner !== undefined) { // working on testing job
+            if (miner !== undefined) { // working on virtual job
                 miner.inspector.submits++
                 miner.inspector.stop()
                 miner.inspector.jobTimer.lock = false
@@ -336,9 +337,9 @@ export class FreeHyconServer {
             fee: 0.029,
             hashrate: 0,
             hashshare: 0,
-            inspector: new MinerInspector(this.diffcultyInspector, this.alphaInspector),
+            inspector: new MinerInspector(this.meanTimeIntern, this.diffcultyIntern, this.alphaIntern),
             socket,
-            status: MinerStatus.OnInterview,
+            status: MinerStatus.Intern,
             tick: Date.now(),
             tickLogin: Date.now(),
             workerId: "",
@@ -371,11 +372,18 @@ export class FreeHyconServer {
         return false
     }
     private checkWorkingDay(miner: IMiner) {
-        const problems = (miner.career === 0) ? this.numInterviewProblems : this.numDayoffProblems
+        const isIntern = miner.status === MinerStatus.Intern
+        const problems = (miner.career !== 0) ? this.numDayoffProblems : (isIntern) ? this.numInternProblems : this.numInterviewProblems
         if (miner.inspector.submits >= problems) {
             miner.inspector.submits = 0
-            miner.status = MinerStatus.Working
-            return true
+            if (isIntern) { // move on next step: onInterview
+                miner.status = MinerStatus.OnInterview
+                const difficulty = miner.inspector.difficulty
+                miner.inspector = new MinerInspector(this.meanTimeInterview, difficulty, this.alphaInterview)
+            } else {
+                miner.status = MinerStatus.Working
+                return true
+            }
         }
         return false
     }
@@ -393,13 +401,13 @@ export class FreeHyconServer {
         const miners = Array.from(this.mapMiner.values())
         this.dataCenter.release(miners)
         setTimeout(async () => {
-            this.releaseData()
+            await this.releaseData()
         }, this.timeoutReleaseData)
     }
     private async clearBlacklist() {
         this.blacklist.clear()
         setTimeout(async () => {
-            this.clearBlacklist()
+            await this.clearBlacklist()
         }, this.timeoutClearBlacklist)
     }
 }
