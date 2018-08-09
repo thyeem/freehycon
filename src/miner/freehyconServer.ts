@@ -96,14 +96,14 @@ const fakeBlock = new Block({
 export class FreeHyconServer {
     public static readonly freqDayoff = 100
     private readonly numJobBuffer = 10
-    private readonly alphaIntern = 0.3
-    private readonly meanTimeIntern = 20000
+    private readonly alphaIntern = 0.2
+    private readonly meanTimeIntern = 10000
     private readonly diffcultyIntern = 1. / (100. * 0.001 * this.meanTimeIntern / Math.LN2)
     private readonly alphaInterview = 0.06
-    private readonly meanTimeInterview = 20000
-    private readonly numInternProblems = 15
-    private readonly numInterviewProblems = 15
-    private readonly numDayoffProblems = 1
+    private readonly meanTimeInterview = 10000
+    private readonly numInternProblems = 20
+    private readonly numInterviewProblems = 30
+    private readonly numDayoffProblems = 2
     private readonly timeoutClearBlacklist = 60000
     private readonly timeoutReleaseData = 10000
     private jobId: number
