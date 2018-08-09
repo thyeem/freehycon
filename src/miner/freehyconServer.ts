@@ -37,6 +37,7 @@ export interface IMiner {
     fee: number
     hashrate: number
     hashshare: number
+    invalid: number
     status: MinerStatus
     career: number
     inspector: MinerInspector
@@ -338,6 +339,7 @@ export class FreeHyconServer {
             hashrate: 0,
             hashshare: 0,
             inspector: new MinerInspector(this.meanTimeIntern, this.diffcultyIntern, this.alphaIntern),
+            invalid: 0,
             socket,
             status: MinerStatus.Intern,
             tick: Date.now(),
@@ -349,15 +351,17 @@ export class FreeHyconServer {
     }
     private banInvalidUsers(miner: IMiner) {
         if (miner.socket === undefined) { return }
+        if (++miner.invalid < 10) { return }
         const remoteIP = miner.socket.socket.remoteAddress
         const socketId = miner.socket.id
         const address = miner.address
         try {
+            logger.error(`Banned invalid miner: ${address} | remoteIP: ${remoteIP}`)
             miner.socket.end()
             miner.socket.unref()
             miner.socket.destroy()
         } catch (e) {
-            logger.fatal(`Banned invalid miner: ${address} | remoteIP: ${remoteIP}`)
+            logger.error(`error in destroying socket: ${e}`)
         }
         this.mapMiner.delete(socketId)
         this.blacklist.add(remoteIP)
@@ -406,6 +410,7 @@ export class FreeHyconServer {
     }
     private async clearBlacklist() {
         this.blacklist.clear()
+        for (const [key, miner] of this.mapMiner) { miner.invalid = 0 }
         setTimeout(async () => {
             await this.clearBlacklist()
         }, this.timeoutClearBlacklist)
