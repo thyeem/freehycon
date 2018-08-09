@@ -11,6 +11,7 @@ import { MinerServer } from "./miner/minerServer"
 import { INetwork } from "./network/inetwork"
 import { IPeer } from "./network/ipeer"
 import { RabbitNetwork } from "./network/rabbit/rabbitNetwork"
+import { RabbitPeer } from "./network/rabbit/rabbitPeer"
 import { RestManager } from "./rest/restManager"
 import { Wallet } from "./wallet/wallet"
 
@@ -22,7 +23,7 @@ export class Server {
     public subscription: Map<number, any> | undefined
 
     public readonly consensus: IConsensus
-    public readonly network: INetwork
+    public readonly network: RabbitNetwork
     public readonly miner: MinerServer
 
     public readonly txPool: ITxPool
@@ -66,29 +67,39 @@ export class Server {
         logger.debug(`begin sync`)
         const peerPromises = this.network.getPeers().map((peer) => peer.getTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
         const peers = [] as Array<{ peer: IPeer; tip: ITip; }>
+        const localTotalwork = this.consensus.getBtip().totalWork
         for (const peerPromise of peerPromises) {
             try {
                 const result = await peerPromise
                 if (result !== undefined) {
-                    peers.push(await result)
+                    peers.push(result)
                 }
             } catch (e) {
                 logger.debug(e)
             }
         }
         const totalworks: number[] = []
-        const localTotalwork = this.consensus.getBtip().totalWork
         for (const peer of peers) {
             if (peer === undefined) { continue }
             const remoteTotalwork = peer.tip.totalwork
             if (remoteTotalwork > localTotalwork) { totalworks.push(remoteTotalwork) }
         }
         if (totalworks.length > 0) {
-            const maxRemoteTotalwork = Math.max(...totalworks)
-            const syncPeer = peers[totalworks.indexOf(maxRemoteTotalwork)]
+            const maxRemoteTotalWork = Math.max(...totalworks)
+            const syncPeer = peers[totalworks.indexOf(maxRemoteTotalWork)]
             logger.warn(`syncPeer: ${syncPeer.peer.getInfo()}`)
             const sync = new Sync(syncPeer, this.consensus, this.network.version)
             await sync.sync()
+            for (let i = 0; i < 2; i++) {
+                const minRemoteTotalWork = Math.max(...totalworks)
+                const ix = totalworks.indexOf(minRemoteTotalWork)
+                const peerx = peers[ix]
+                if (peerx === undefined || peerx.peer === undefined) { return }
+                peerx.peer.disconnect()
+                peers.splice(ix, 1)
+            }
+            logger.info(`Peers Count=${this.network.peers.size}`)
+
         }
         setTimeout(() => this.runSync(), 500)
         logger.debug(`end sync`)
