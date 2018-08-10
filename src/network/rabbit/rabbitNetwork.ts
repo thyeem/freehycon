@@ -48,12 +48,12 @@ export class RabbitNetwork implements INetwork {
     private natUpnp: NatUpnp
 
     constructor(txPool: ITxPool, consensus: IConsensus, port: number = 8148, peerDbPath: string = "peerdb", networkid: string = "hycon") {
-        RabbitNetwork.socketTimeout = 300000
+        RabbitNetwork.socketTimeout = 10000
         this.txPool = txPool
         this.consensus = consensus
         this.port = port
         this.networkid = networkid
-        this.targetConnectedPeers = 30
+        this.targetConnectedPeers = 20
         this.peers = new Map<number, RabbitPeer>()
         this.pendingConnections = new Map<number, Promise<RabbitPeer>>()
         this.peerDatabase = new PeerDatabase(this, peerDbPath)
@@ -205,8 +205,7 @@ export class RabbitNetwork implements INetwork {
 
         this.connectSeeds()
         this.connectLoop()
-
-        // this.connectSeedsLoop()
+        // await this.connectSeedsLoop()
         // setInterval(() => {
         //     this.showInfo()
         //     logger.info(`Peers Count=${this.peers.size}`)
@@ -214,17 +213,55 @@ export class RabbitNetwork implements INetwork {
         // setInterval(() => {
         //     this.connectSeeds()
         // }, 60 * 1000)
-
         return true
     }
-    public connectLoop() {
+    public async connectLoop() {
         this.connectToPeer()
-        setTimeout(() => this.connectLoop(), 3000)
+        setTimeout(() => { this.connectLoop() }, 10000)
     }
-    // public connectSeedsLoop() {
-    //     this.connectSeeds()
-    //     setTimeout(() => { this.connectSeedsLoop() }, 60000)
+    // public async connectSeedsLoop() {
+    //     await this.connectSeeds()
+    //     setTimeout(async () => { await this.connectSeedsLoop() }, 60000)
     // }
+    public async connectToPeer(): Promise<void> {
+        logger.info(`Peers Count=${this.peers.size}`)
+        if (this.peers.size >= this.targetConnectedPeers) { return }
+        try {
+            const randPeer = this.getRandomPeer()
+            if (randPeer === undefined) { return }
+            const peers = await randPeer.getPeers()
+            if (peers.length === 0) { return }
+            const pick = Math.floor(Math.random() * peers.length)
+            const peer = peers[pick]
+            if (peer === undefined) { return }
+            this.connect(peer.host, peer.port).catch(() => { })
+        } catch (e) {
+            logger.debug(`Connecting to Peer: ${e}`)
+        }
+    }
+    public async connectSeeds() {
+        try {
+            for (const seed of RabbitNetwork.seeds) {
+                const rabbitPeer = await this.connect(seed.host, seed.port, false)
+                const seedPeers = await rabbitPeer.getPeers()
+                if (seedPeers.length === 0) { continue }
+                const pick = Math.floor(Math.random() * seedPeers.length)
+                const peer = seedPeers[pick]
+                if (peer === undefined) { continue }
+                this.connect(peer.host, peer.port).catch(() => { })
+                rabbitPeer.disconnect()
+                // these list can be very huge
+                // accept host, port only
+                // const info: proto.IPeer[] = []
+                // for (const peer of peers) {
+                //     info.push({ host: peer.host, port: peer.port })
+                // }
+                // await this.peerDatabase.putPeers(info)
+            }
+        } catch (e) {
+            logger.debug(`Error occurred while connecting to seeds: ${e}`)
+        }
+    }
     public showInfo() {
         let i = 1
         logger.debug(`All Peers ${this.peers.size}`)
@@ -380,43 +417,5 @@ export class RabbitNetwork implements INetwork {
 
         logger.info(`Connected to ${peer.socketBuffer.getInfo()} GUID: ${peerStatus.guid}, Listening Port: ${port}`)
         return peer
-    }
-
-    private async connectToPeer(): Promise<void> {
-        if (this.peers.size >= this.targetConnectedPeers) { return }
-        try {
-            const randPeer = this.getRandomPeer()
-            if (randPeer === undefined) { return }
-            const peers = (await randPeer.getPeers(1)).slice(0, 1)
-            for (const peer of peers) {
-                if (peer === undefined) { continue }
-                this.connect(peer.host, peer.port).catch(() => { })
-            }
-        } catch (e) {
-            logger.debug(`Connecting to Peer: ${e}`)
-        }
-    }
-
-    private async connectSeeds() {
-        try {
-            for (const seed of RabbitNetwork.seeds) {
-                const rabbitPeer = await this.connect(seed.host, seed.port, false)
-                const peers = (await rabbitPeer.getPeers(3)).slice(0, 3)
-                for (const peer of peers) {
-                    if (peer === undefined) { continue }
-                    this.connect(peer.host, peer.port).catch(() => { })
-                }
-                rabbitPeer.disconnect()
-                // these list can be very huge
-                // accept host, port only
-                // const info: proto.IPeer[] = []
-                // for (const peer of peers) {
-                //     info.push({ host: peer.host, port: peer.port })
-                // }
-                // await this.peerDatabase.putPeers(info)
-            }
-        } catch (e) {
-            logger.debug(`Error occurred while connecting to seeds: ${e}`)
-        }
     }
 }

@@ -65,6 +65,7 @@ export class Server {
 
     public async runSync() {
         logger.debug(`begin sync`)
+        logger.info(`Peers Count=${this.network.peers.size}`)
         const peerPromises = this.network.getPeers().map((peer) => peer.getTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
         const peers = [] as Array<{ peer: IPeer; tip: ITip; }>
         const localTotalwork = this.consensus.getBtip().totalWork
@@ -90,18 +91,18 @@ export class Server {
             logger.warn(`syncPeer: ${syncPeer.peer.getInfo()}`)
             const sync = new Sync(syncPeer, this.consensus, this.network.version)
             await sync.sync()
-            for (let i = 0; i < 2; i++) {
-                const minRemoteTotalWork = Math.max(...totalworks)
-                const ix = totalworks.indexOf(minRemoteTotalWork)
-                const peerx = peers[ix]
-                if (peerx === undefined || peerx.peer === undefined) { return }
-                peerx.peer.disconnect()
-                peers.splice(ix, 1)
-            }
-            logger.info(`Peers Count=${this.network.peers.size}`)
-
         }
-        setTimeout(() => this.runSync(), 500)
+        for (let i = 0; i < 1; i++) {
+            const minRemoteTotalWork = Math.min(...totalworks)
+            const ix = totalworks.indexOf(minRemoteTotalWork)
+            const peerx = peers[ix]
+            if (peerx === undefined || peerx.peer === undefined) { return }
+            logger.warn(`disconnect peer: ${peerx.peer.getInfo()}`)
+            peerx.peer.disconnect()
+            peers.splice(ix, 1)
+            logger.info(`Peers Count=${this.network.peers.size}`)
+        }
+        setTimeout(async () => { await this.runSync() }, 500)
         logger.debug(`end sync`)
     }
 }
