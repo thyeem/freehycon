@@ -102,7 +102,8 @@ export class Server {
             peers.splice(ix, 1)
             logger.info(`Peers Count=${this.network.peers.size}`)
         }
-        setTimeout(async () => { await this.runSync() }, 500)
+
+        setTimeout(() => { this.runSync() }, 500)
         logger.debug(`end sync`)
     }
 }
