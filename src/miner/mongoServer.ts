@@ -28,7 +28,7 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Works`)
-        const rows = await collection.find({}).limit(100).toArray()
+        const rows = await collection.find({}).limit(3).toArray()
         for (const one of rows) {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
@@ -39,13 +39,14 @@ export class MongoServer {
     public async submitBlock(block: Block, prehash: Uint8Array) {
         const collection = this.db.collection(`Submits`)
         const submit = { block: block.encode(), prehash: Buffer.from(prehash) }
+        await collection.remove({})
         await collection.insertOne(submit)
     }
     public async pollingSubmitWork() {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Submits`)
-        const rows = await collection.find({}).limit(100).toArray()
+        const rows = await collection.find({}).limit(3).toArray()
         for (const one of rows) {
             collection.deleteOne({ _id: one._id })
             const block = Block.decode(one.block.buffer)
