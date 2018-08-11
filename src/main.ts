@@ -91,7 +91,6 @@ if (globalOptions.data === undefined) {
         }
     }
 }
-
 if (globalOptions.str_port === 0) {
     globalOptions.str_port = 20000 + Math.floor(40000 * Math.random())
 }

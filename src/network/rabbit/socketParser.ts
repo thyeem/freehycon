@@ -3,9 +3,9 @@ import { Socket } from "net"
 import { AsyncLock } from "../../common/asyncLock"
 import { globalOptions } from "../../main"
 import { Hash } from "../../util/hash"
+import { MAX_PACKET_SIZE } from "./networkConstants"
 
 const logger = getLogger("SocketBuffer")
-export const MAX_PACKET_SIZE = 10 * 1024 * 1024
 enum ParseState {
     HeaderPrefix,
     HeaderRoute,
@@ -28,6 +28,7 @@ export class SocketParser {
     private parseIndex: number
     private packetCallback: (route: number, buffer: Buffer) => void
     private sendLock: AsyncLock
+    // private lockLogTimer: NodeJS.Timer
 
     constructor(socket: Socket, onPacket: (route: number, buffer: Buffer) => void, bufferSize: number = 1024) {
         this.socket = socket
@@ -39,8 +40,9 @@ export class SocketParser {
         this.parseReset()
         this.socket.on("data", (data) => this.receive(data))
         this.socket.on("drain", () => {
-            logger.debug(`Resuming socket ${this.socket.remoteAddress}:${this.socket.remotePort}`)
+            logger.debug(`Resuming socket(${this.socket.bufferSize}) ${this.socket.remoteAddress}:${this.socket.remotePort}`)
             this.socket.resume()
+            // clearTimeout(this.lockLogTimer)
             this.sendLock.releaseLock()
         })
     }
@@ -50,29 +52,25 @@ export class SocketParser {
             throw new Error("Buffer too large")
         }
 
-        // true: all queued to kernel buffer
-        // false: user memory is used
-
-        let kernel = true
         await this.sendLock.getLock()
+        // this.lockLogTimer = setTimeout(() => logger.debug(`Long lock time in SocketParse.send`), 10000)
         this.writeBuffer.writeUInt32LE(route, 0)
         this.writeBuffer.writeUInt32LE(buffer.length, 4)
-        // using array buffer directly doesn't work
-        kernel = kernel && this.socket.write(Buffer.from(headerPrefix))
-        kernel = kernel && this.socket.write(this.writeBuffer)
-        kernel = kernel && this.socket.write(Buffer.from(buffer))
-        if (kernel) {
+        this.socket.write(Buffer.from(headerPrefix))
+        this.socket.write(this.writeBuffer)
+        this.socket.write(Buffer.from(buffer))
+        if (this.socket.bufferSize === undefined || this.socket.bufferSize < 1024 * 1024) {
+            // clearTimeout(this.lockLogTimer)
             this.sendLock.releaseLock()
         } else {
             // for this case, user memory is used
             // it will be released in "drain" event
-            logger.debug(`Pausing socket ${this.socket.remoteAddress}:${this.socket.remotePort}`)
+            // logger.debug(`Pausing socket(${this.socket.bufferSize}) ${this.socket.remoteAddress}:${this.socket.remotePort}`)
             this.socket.pause()
         }
     }
 
     public destroy(e?: Error): void {
-
         this.sendLock.rejectAll()
         if (this.socket) {
             logger.debug(`Disconnecting from ${this.socket.remoteAddress}:${this.socket.remotePort} due to protocol error: ${e}, ${e ? e.stack : ""}`)

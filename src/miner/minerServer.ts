@@ -42,23 +42,23 @@ export class MinerServer {
         this.mongoServer = new MongoServer()
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
-        setTimeout(async () => {
-            await this.runPollingSubmit()
-            await this.runPollingPayWages()
-            await this.runPollingUpdateBlockStatus()
+        setTimeout(() => {
+            this.runPollingSubmit()
+            this.runPollingPayWages()
+            this.runPollingUpdateBlockStatus()
         }, 5000)
     }
     public async runPollingSubmit() {
-        await this.pollingSubmit()
-        setTimeout(async () => { await this.runPollingSubmit() }, MongoServer.timeoutSubmit)
+        this.pollingSubmit()
+        setTimeout(async () => { this.runPollingSubmit() }, MongoServer.timeoutSubmit)
     }
     public async runPollingPayWages() {
-        await this.pollingPayWages()
-        setTimeout(async () => { await this.runPollingPayWages() }, MongoServer.timeoutPayWages)
+        this.pollingPayWages()
+        setTimeout(async () => { this.runPollingPayWages() }, MongoServer.timeoutPayWages)
     }
     public async runPollingUpdateBlockStatus() {
-        await this.updateBlockStatus()
-        setTimeout(async () => { await this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
+        this.updateBlockStatus()
+        setTimeout(async () => { this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
     }
     public async updateBlockStatus() {
         const rows = await this.mongoServer.getMinedBlocks()

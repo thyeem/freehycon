@@ -126,7 +126,7 @@ export class FreeHyconServer {
         this.blacklist = new Set<string>()
         this.jobId = 0
         this.init()
-        this.runPollingPutWork()
+        setTimeout(() => { this.runPollingPutWork() }, 3000)
     }
     public async runPollingPutWork() {
         this.pollingPutWork()
