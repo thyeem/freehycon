@@ -62,19 +62,36 @@ export interface IMinedBlocks {
 export class DataCenter {
     public minedBlocks: IMinedBlocks[]
     public rewardBase: Map<string, IMinerReward>
+    public tickLogin: Map<string, number>
     public poolHashshare: number
     public poolHashrate: number
     public workerHash: number
     public worker: number
     public minerG: Map<string, IMinerGroup>
     private mongoServer: MongoServer
-    private readonly minersFile = "miners.json"
-    private readonly blocksFile = "blocks.json"
     constructor(mongoServer: MongoServer) {
         this.mongoServer = mongoServer
         this.minerG = new Map<string, IMinerGroup>()
         this.rewardBase = new Map<string, IMinerReward>()
+        this.tickLogin = new Map<string, number>()
         this.minedBlocks = []
+    }
+    public async preload() {
+        const miners = await this.mongoServer.loadMiners()
+        for (const m of miners) {
+            const minerG: IMinerGroup = {
+                _id: m._id,
+                elapsed: m.elapsed,
+                elapsedStr: m.elapsedStr,
+                fee: m.fee,
+                hashrate: m.hashrate,
+                hashshare: m.hashshare,
+                nodes: m.nodes,
+                reward: m.reward
+            }
+            this.minerG.set(m._id, minerG)
+            this.tickLogin.set(m._id, Date.now() - m.elapsed)
+        }
     }
     public updateMinerInfo(miners: IMiner[]) {
         this.reset()

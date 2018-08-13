@@ -10,7 +10,8 @@
             "never"
         ],
         "no-empty": false,
-        "max-line-length": false
+        "max-line-length": false,
+        "no-shadowed-variable": false,
     },
     "rulesDirectory": []
 }

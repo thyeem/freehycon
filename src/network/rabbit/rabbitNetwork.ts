@@ -53,7 +53,7 @@ export class RabbitNetwork implements INetwork {
         this.consensus = consensus
         this.port = port
         this.networkid = networkid
-        this.targetConnectedPeers = 20
+        this.targetConnectedPeers = 10
         this.peers = new Map<number, RabbitPeer>()
         this.pendingConnections = new Map<number, Promise<RabbitPeer>>()
         this.peerDatabase = new PeerDatabase(this, peerDbPath)

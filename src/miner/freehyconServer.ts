@@ -98,11 +98,11 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly alphaIntern = 0.3
     private readonly meanTimeIntern = 20000
-    private readonly diffcultyIntern = 1. / (100. * 0.001 * this.meanTimeIntern / Math.LN2)
+    private readonly diffcultyIntern = 1. / (200. * 0.001 * this.meanTimeIntern / Math.LN2)
     private readonly alphaInterview = 0.06
     private readonly meanTimeInterview = 20000
-    private readonly numInternProblems = 20
-    private readonly numInterviewProblems = 20
+    private readonly numInternProblems = 15
+    private readonly numInterviewProblems = 15
     private readonly numDayoffProblems = 1
     private readonly timeoutClearBlacklist = 60000
     private readonly timeoutReleaseData = 10000
@@ -125,12 +125,17 @@ export class FreeHyconServer {
         this.dataCenter = new DataCenter(this.mongoServer)
         this.blacklist = new Set<string>()
         this.jobId = 0
-        this.init()
-        setTimeout(() => { this.runPollingPutWork() }, 3000)
+        setTimeout(async () => {
+            await this.dataCenter.preload()
+            this.init()
+            this.releaseData()
+            this.clearBlacklist()
+            this.runPollingPutWork()
+        }, 2000)
     }
     public async runPollingPutWork() {
         this.pollingPutWork()
-        setTimeout(async () => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
+        setTimeout(() => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
     }
     public async pollingPutWork() {
         const foundWorks = await this.mongoServer.pollingPutWork()
@@ -171,7 +176,7 @@ export class FreeHyconServer {
     }
     public async putWorkOnInspector(miner: IMiner) {
         const newJob = this.newJob(fakeBlock, genPrehash(), miner)
-        await this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
+        this.notifyJob(miner.socket, getRandomIndex(), newJob, miner)
         if (!miner.inspector.jobTimer.lock) {
             miner.inspector.jobTimer.lock = true
             miner.inspector.jobTimer.start = Date.now()
@@ -196,6 +201,9 @@ export class FreeHyconServer {
                         logger.warn(`Authorizing miner: ${address}`)
                         miner.address = checkAddress(address)
                         miner.workerId = (workerId.trim() === "") ? miner.socket.id.slice(0, 6) : workerId.trim()
+                        const tick = (this.dataCenter.tickLogin.has(miner.address)) ? this.dataCenter.tickLogin.get(address) : Date.now()
+                        miner.tick = tick
+                        miner.tickLogin = tick
                         this.putWorkOnInspector(miner)
                     }
                     deferred.resolve([true])
@@ -236,8 +244,6 @@ export class FreeHyconServer {
         this.stratum.listen().done((msg: any) => {
             logger.fatal(msg)
         })
-        this.releaseData()
-        this.clearBlacklist()
     }
     private newJob(block: Block, prehash: Uint8Array, miner?: IMiner): IJob {
         const nick = (miner !== undefined) ? getNick(miner) : ""
@@ -334,7 +340,7 @@ export class FreeHyconServer {
     private welcomeNewMiner(socket: any): IMiner {
         logger.warn(`New miner socket(${socket.id}) connected`)
         const miner: IMiner = {
-            address: "",
+            address: undefined,
             career: 0,
             fee: 0.029,
             hashrate: 0,
@@ -343,9 +349,9 @@ export class FreeHyconServer {
             invalid: 0,
             socket,
             status: MinerStatus.Intern,
-            tick: Date.now(),
-            tickLogin: Date.now(),
-            workerId: "",
+            tick: undefined,
+            tickLogin: undefined,
+            workerId: undefined,
         }
         this.mapMiner.set(socket.id, miner)
         return this.mapMiner.get(socket.id)
@@ -399,21 +405,22 @@ export class FreeHyconServer {
         const rewardBase = new Map(this.dataCenter.rewardBase)
         this.dataCenter.minerG.clear()
         this.dataCenter.rewardBase.clear()
+        this.dataCenter.tickLogin.clear()
         for (const [key, miner] of this.mapMiner) { miner.hashshare = 0 }
         return { miners, rewardBase, roundHash }
     }
     private async releaseData() {
         const miners = Array.from(this.mapMiner.values())
         this.dataCenter.release(miners)
-        setTimeout(async () => {
-            await this.releaseData()
+        setTimeout(() => {
+            this.releaseData()
         }, this.timeoutReleaseData)
     }
     private async clearBlacklist() {
         this.blacklist.clear()
         for (const [key, miner] of this.mapMiner) { miner.invalid = 0 }
-        setTimeout(async () => {
-            await this.clearBlacklist()
+        setTimeout(() => {
+            this.clearBlacklist()
         }, this.timeoutClearBlacklist)
     }
 }

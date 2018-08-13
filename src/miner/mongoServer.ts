@@ -1,6 +1,6 @@
 import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
-import { IMinedBlocks } from "./dataCenter"
+import { IMinedBlocks, IPoolMiner } from "./dataCenter"
 export class MongoServer {
     public static readonly timeoutPutWork = 1000
     public static readonly timeoutSubmit = 1000
@@ -59,7 +59,7 @@ export class MongoServer {
         const collection = this.db.collection(`MinedBlocks`)
         await collection.insertOne(block)
     }
-    public async addMiners(minersInfo: any) {
+    public async addMiners(minersInfo: IPoolMiner) {
         if (this.db === undefined) { return }
         const info = this.db.collection(`InfoPool`)
         await info.remove({})
@@ -74,9 +74,17 @@ export class MongoServer {
             await miners.insertMany(minersInfo.minerGroups)
         }
     }
+    public async loadMiners() {
+        const returnRows: any[] = []
+        if (this.db === undefined) { return returnRows }
+        const collection = this.db.collection(`MinerGroups`)
+        const rows = await collection.find({}).limit(1000).toArray()
+        for (const one of rows) { returnRows.push(one) }
+        return returnRows
+    }
     public async payWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
-        await info.insertOne({
+        info.insertOne({
             blockHash: wageInfo.blockHash,
             rewardBase: wageInfo.rewardBase,
             roundHash: wageInfo.roundHash,
@@ -92,7 +100,7 @@ export class MongoServer {
     }
     public async deletePayWage(payId: string) {
         const collection = this.db.collection(`PayWages`)
-        await collection.deleteOne({ _id: payId })
+        collection.deleteOne({ _id: payId })
     }
 
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {

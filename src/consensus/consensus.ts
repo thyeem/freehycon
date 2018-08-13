@@ -51,8 +51,8 @@ export class Consensus extends EventEmitter implements IConsensus {
         this.worldState = worldState
         this.txPool = txPool
         this.db = new Database(dbPath, filePath)
-        if (txPath) { this.txdb = new TxDatabase(txPath) }
-        if (minedDBPath) { this.minedDatabase = new MinedDatabase(minedDBPath) }
+        // if (txPath) { this.txdb = new TxDatabase(txPath) }
+        // if (minedDBPath) { this.minedDatabase = new MinedDatabase(minedDBPath) }
         this.futureBlockQueue = new DelayQueue(10)
     }
     public async init(): Promise<void> {
