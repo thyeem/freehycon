@@ -2,9 +2,9 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks } from "./dataCenter"
 export class MongoServer {
-    public static readonly timeoutPutWork = 100
-    public static readonly timeoutSubmit = 500
-    public static readonly timeoutPayWages = 60000
+    public static readonly timeoutPutWork = 1000
+    public static readonly timeoutSubmit = 1000
+    public static readonly timeoutPayWages = 10000
     public static readonly timeoutUpdateBlockStatus = 1800000
     public static readonly confirmations = 50
     private url: string = "mongodb://localhost:27017"
@@ -28,7 +28,7 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Works`)
-        const rows = await collection.find({}).limit(3).toArray()
+        const rows = await collection.find({}).limit(10).toArray()
         for (const one of rows) {
             const block = Block.decode(one.block.buffer)
             const prehash = Buffer.from(one.prehash.buffer as Buffer)
@@ -46,7 +46,7 @@ export class MongoServer {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`Submits`)
-        const rows = await collection.find({}).limit(3).toArray()
+        const rows = await collection.find({}).limit(10).toArray()
         for (const one of rows) {
             collection.deleteOne({ _id: one._id })
             const block = Block.decode(one.block.buffer)

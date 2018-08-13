@@ -48,7 +48,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0xFFFFFF)
+    return Math.floor(Math.random() * 0xFFFF)
 }
 function checkAddress(address: string) {
     const isAddress = Address.isAddress(address)
@@ -147,6 +147,7 @@ export class FreeHyconServer {
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
+            let index = 0
             for (const [key, miner] of this.mapMiner) {
                 if (miner.socket === undefined) { continue }
                 if (miner.status === MinerStatus.Working) {
@@ -154,7 +155,7 @@ export class FreeHyconServer {
                         this.putWorkOnInspector(miner)
                     } else {
                         this.measureMiner(miner)
-                        this.notifyJob(miner.socket, getRandomIndex(), newJob)
+                        this.notifyJob(miner.socket, ++index, newJob)
                     }
                     continue
                 } else { // miner.status === ( Intern or OnInterview or Dayoff )

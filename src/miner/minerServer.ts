@@ -50,15 +50,15 @@ export class MinerServer {
     }
     public async runPollingSubmit() {
         this.pollingSubmit()
-        setTimeout(async () => { this.runPollingSubmit() }, MongoServer.timeoutSubmit)
+        setTimeout(() => { this.runPollingSubmit() }, MongoServer.timeoutSubmit)
     }
     public async runPollingPayWages() {
         this.pollingPayWages()
-        setTimeout(async () => { this.runPollingPayWages() }, MongoServer.timeoutPayWages)
+        setTimeout(() => { this.runPollingPayWages() }, MongoServer.timeoutPayWages)
     }
     public async runPollingUpdateBlockStatus() {
         this.updateBlockStatus()
-        setTimeout(async () => { this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
+        setTimeout(() => { this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
     }
     public async updateBlockStatus() {
         const rows = await this.mongoServer.getMinedBlocks()
@@ -102,10 +102,10 @@ export class MinerServer {
                         const rewardBase = new Map<string, IMinerReward>()
                         for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
                         this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
-                        await this.mongoServer.deletePayWage(pay._id)
+                        this.mongoServer.deletePayWage(pay._id)
                     } else {
                         this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
-                        await this.mongoServer.deletePayWage(pay._id)
+                        this.mongoServer.deletePayWage(pay._id)
                     }
                 } else {
                     this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
