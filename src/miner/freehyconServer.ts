@@ -200,7 +200,7 @@ export class FreeHyconServer {
                     } else {
                         logger.warn(`Authorizing miner: ${address}`)
                         miner.address = checkAddress(address)
-                        miner.workerId = (workerId.trim() === "") ? miner.socket.id.slice(0, 6) : workerId.trim()
+                        miner.workerId = (workerId.trim() === "") ? miner.socket.id.slice(0, 6) : workerId.trim().slice(0, 20)
                         const tick = (this.dataCenter.tickLogin.has(miner.address)) ? this.dataCenter.tickLogin.get(address) : Date.now()
                         miner.tick = tick
                         miner.tickLogin = tick
