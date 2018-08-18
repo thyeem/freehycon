@@ -1,12 +1,12 @@
 import { getLogger } from "log4js"
 import { IJob } from "./freehyconServer"
-const logger = getLogger("MinerInspector")
+const logger = getLogger("Workernspector")
 interface IJobTimer {
     start: number
     end: number
     lock: boolean
 }
-export class MinerInspector {
+export class WorkerInspector {
     public readonly numJobBuffer: number = 10
     public jobId: number
     public alpha: number

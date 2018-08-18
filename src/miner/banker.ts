@@ -37,15 +37,15 @@ export class Banker {
         this.carryover = 0
         this.banker = Wallet.generate(bankerRecover)
     }
-    public async distributeIncome(income: number, hash: string, height: number, rewardBase: Map<string, IMinerReward>, poolHashshare: number) {
+    public async distributeIncome(income: number, hash: string, height: number, rewardBase: Map<string, IMinerReward>) {
         try {
             logger.error(`distribution (block #${height}: ${hash}) started`)
             income += this.carryover
             let sumFee = 0
-            for (const [address, minerG] of rewardBase) {
-                const amount = income * minerG.reward / poolHashshare - this.txFee
+            for (const [address, miner] of rewardBase) {
+                const amount = income * miner.reward - this.txFee
                 if (amount <= 0) { continue }
-                const fee = income * minerG.fee / poolHashshare
+                const fee = income * miner.fee
                 sumFee += fee
                 const tx = await this.makeTx(address, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])

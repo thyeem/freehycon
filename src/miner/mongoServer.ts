@@ -1,12 +1,12 @@
 import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
-import { IMinedBlocks, IPoolMiner } from "./dataCenter"
+import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
 export class MongoServer {
     public static readonly timeoutPutWork = 1000
     public static readonly timeoutSubmit = 1000
     public static readonly timeoutPayWages = 10000
     public static readonly timeoutUpdateBlockStatus = 1800000
-    public static readonly confirmations = 50
+    public static readonly confirmations = 2
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private client: MongoClient
@@ -59,26 +59,31 @@ export class MongoServer {
         const collection = this.db.collection(`MinedBlocks`)
         await collection.insertOne(block)
     }
-    public async addMiners(minersInfo: IPoolMiner) {
+    public async addSummary(summary: IPoolSumary) {
+        const collection = this.db.collection(`PoolSummary`)
+        await collection.remove({})
+        await collection.insertOne(summary)
+    }
+    public async addMiners(miners: IMiner[]) {
         if (this.db === undefined) { return }
-        const info = this.db.collection(`InfoPool`)
-        await info.remove({})
-        await info.insertOne({
-            minersCount: minersInfo.minersCount,
-            poolHashrate: minersInfo.poolHashrate,
-            poolHashshare: minersInfo.poolHashshare,
-        })
-        if (minersInfo.minerGroups.length > 0) {
-            const miners = this.db.collection(`MinerGroups`)
-            await miners.remove({})
-            await miners.insertMany(minersInfo.minerGroups)
+        if (miners.length > 0) {
+            const collection = this.db.collection(`Miners`)
+            await collection.remove({})
+            await collection.insertMany(miners)
         }
     }
-    public async loadMiners() {
+    public async addWorkers(workers: IWorkMan[]) {
+        if (workers.length > 0) {
+            const collection = this.db.collection(`Workers`)
+            await collection.remove({})
+            await collection.insertMany(workers)
+        }
+    }
+    public async loadWorkers() {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`MinerGroups`)
-        const rows = await collection.find({}).limit(1000).toArray()
+        const collection = this.db.collection(`Workers`)
+        const rows = await collection.find().toArray()
         for (const one of rows) { returnRows.push(one) }
         return returnRows
     }
@@ -87,7 +92,6 @@ export class MongoServer {
         info.insertOne({
             blockHash: wageInfo.blockHash,
             rewardBase: wageInfo.rewardBase,
-            roundHash: wageInfo.roundHash,
         })
     }
     public async pollingPayWages() {

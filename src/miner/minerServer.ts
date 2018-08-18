@@ -101,7 +101,7 @@ export class MinerServer {
                     if (isMainchain) {
                         const rewardBase = new Map<string, IMinerReward>()
                         for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
-                        this.banker.distributeIncome(240, hash.toString(), height, rewardBase, pay.roundHash)
+                        this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
                         this.mongoServer.deletePayWage(pay._id)
                     } else {
                         this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)

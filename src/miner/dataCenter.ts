@@ -1,46 +1,26 @@
 import { getLogger } from "log4js"
-import { IMiner, MinerStatus } from "./freehyconServer"
-import { MongoServer } from "./mongoServer"
+import { IWorker, WorkerStatus, FreeHyconServer } from "./freehyconServer"
 const logger = getLogger("dataCenter")
 
-function formatTime(second: number) {
-    const DAY = 86400
-    const HOUR = 3600
-    const MIN = 60
-    let count = 0
-    let res = ""
-    second = (second < 0) ? 0 : 0.001 * second
-    const day = Math.floor(second / DAY)
-    if (day > 0) {
-        count++
-        res += day + "d "
-        second -= day * DAY
-    }
-    const hour = Math.floor(second / HOUR)
-    if (hour > 0) {
-        count++
-        res += hour + "h "
-        second -= hour * HOUR
-        if (count > 1) { return res.trim() }
-    }
-    const min = Math.floor(second / MIN)
-    if (min > 0) {
-        count++
-        res += min + "m "
-        second -= min * MIN
-        if (count > 1) { return res.trim() }
-    }
-    return res + second.toFixed(0) + "s"
-}
-export interface IPoolMiner {
+export interface IPoolSumary {
     poolHashrate: number
     poolHashshare: number
-    minersCount: number
-    minerGroups: IMinerGroup[]
+    workerCount: number
 }
-export interface IMinerGroup {
+export interface IMiner {
     _id: string
     nodes: number
+    hashrate: number
+    hashshare: number
+    elapsed: number
+    elapsedStr: string
+    reward: number
+    fee: number
+}
+export interface IWorkMan {
+    address: string
+    alive: boolean
+    workerId: string
     hashrate: number
     hashshare: number
     elapsed: number
@@ -62,104 +42,200 @@ export interface IMinedBlocks {
 export class DataCenter {
     public minedBlocks: IMinedBlocks[]
     public rewardBase: Map<string, IMinerReward>
-    public tickLogin: Map<string, number>
     public poolHashshare: number
     public poolHashrate: number
-    public workerHash: number
-    public worker: number
-    public minerG: Map<string, IMinerGroup>
-    private mongoServer: MongoServer
-    constructor(mongoServer: MongoServer) {
-        this.mongoServer = mongoServer
-        this.minerG = new Map<string, IMinerGroup>()
+    public actualHashrate: number
+    public actualWorkers: number
+    public miners: Map<string, IMiner>
+    public workers: Map<string, Map<string, IWorkMan>>
+    private freehyconServer: FreeHyconServer
+    constructor(freehyconServer: FreeHyconServer) {
+        this.freehyconServer = freehyconServer
+        this.miners = new Map<string, IMiner>()
+        this.workers = new Map<string, Map<string, IWorkMan>>()
         this.rewardBase = new Map<string, IMinerReward>()
-        this.tickLogin = new Map<string, number>()
         this.minedBlocks = []
     }
     public async preload() {
-        const miners = await this.mongoServer.loadMiners()
-        for (const m of miners) {
-            const minerG: IMinerGroup = {
-                _id: m._id,
-                elapsed: m.elapsed,
-                elapsedStr: m.elapsedStr,
-                fee: m.fee,
-                hashrate: m.hashrate,
-                hashshare: m.hashshare,
-                nodes: m.nodes,
-                reward: m.reward
-            }
-            this.minerG.set(m._id, minerG)
-            this.tickLogin.set(m._id, Date.now() - m.elapsed)
-        }
-    }
-    public updateMinerInfo(miners: IMiner[]) {
+        const workers = await this.freehyconServer.mongoServer.loadWorkers()
         this.reset()
-        for (const miner of miners) {
-            this.poolHashrate += miner.hashrate
-            if (miner.status === MinerStatus.Working) {
-                this.workerHash += miner.hashrate
-                this.worker++
+        this.loadWorkers(workers)
+    }
+    public updateDataSet(workers: IWorker[]) {
+        this.reset()
+        this.updateWorkers(workers)
+        this.updateMiners()
+        this.updateRewardBase()
+    }
+    public loadWorkers(workers: IWorkMan[]) {
+        for (const worker of workers) {
+            let miner = this.workers.get(worker.address)
+            if (miner === undefined) {
+                this.workers.set(worker.address, new Map<string, IWorkMan>())
+                miner = this.workers.get(worker.address)
             }
-            const minerG = this.minerG.get(miner.address)
-            const elapsed = Date.now() - miner.tickLogin
-            if (minerG === undefined) {
-                const newMinerG: IMinerGroup = {
-                    _id: miner.address,
-                    elapsed,
-                    elapsedStr: formatTime(elapsed),
-                    fee: miner.hashshare * miner.fee,
-                    hashrate: miner.hashrate,
-                    hashshare: miner.hashshare,
-                    nodes: 1,
-                    reward: miner.hashshare * (1 - miner.fee),
-                }
-                this.minerG.set(miner.address, newMinerG)
-            } else {
-                minerG.nodes++
-                minerG.hashrate += miner.hashrate
-                minerG.hashshare += miner.hashshare
-                minerG.fee += miner.hashshare * miner.fee
-                minerG.reward += miner.hashshare * (1 - miner.fee)
-                minerG.elapsed = Math.max(elapsed, minerG.elapsed)
-                minerG.elapsedStr = formatTime(minerG.elapsed)
-            }
-        }
-        for (const [address, minerG] of this.minerG) {
-            this.poolHashshare += minerG.hashshare
-            this.rewardBase.set(address, { fee: minerG.fee, reward: minerG.reward })
+            miner.set(worker.workerId, worker)
         }
     }
-    public release(miners: IMiner[]) {
-        const minersCount = miners.length
-        this.updateMinerInfo(miners)
-        const poolMiners = this.getPoolMiners(minersCount)
-        logger.warn(`total(${minersCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.worker}): ${this.workerHash.toFixed(1)} H/s`)
-        this.mongoServer.addMiners(poolMiners)
+    public updateWorkers(workers: IWorker[]) {
+        for (const worker of workers) {
+            this.poolHashrate += worker.hashrate
+            if (worker.status === WorkerStatus.Working) {
+                this.actualHashrate += worker.hashrate
+                this.actualWorkers++
+            }
+            let miner = this.workers.get(worker.address)
+            if (miner === undefined) {
+                this.workers.set(worker.address, new Map<string, IWorkMan>())
+                miner = this.workers.get(worker.address)
+            }
+            const prior = miner.get(worker.workerId)
+            let hashshare = worker.hashshare
+            if (prior !== undefined && prior.hashshare > hashshare) {
+                hashshare += prior.hashshare
+                this.freehyconServer.setWorkerHashshare(worker.socket.id, hashshare)
+            }
+            const elapsed = Date.now() - worker.tickLogin
+            miner.set(worker.workerId, {
+                address: worker.address,
+                alive: true,
+                workerId: worker.workerId,
+                hashrate: worker.hashrate,
+                hashshare,
+                elapsed,
+                elapsedStr: formatTime(elapsed),
+                fee: hashshare * worker.fee,
+                reward: hashshare * (1 - worker.fee)
+            })
+        }
     }
-    public getPoolMiners(minersCount: number) {
-        const minerGroups: IMinerGroup[] = Array.from(this.minerG.values())
-        minerGroups.sort((a, b) => {
-            return b.hashshare - a.hashshare
-        })
-        const poolMiners: IPoolMiner = {
-            minerGroups,
-            minersCount,
+    public updateMiners() {
+        for (const [address, workers] of this.workers) {
+            let nodes = 0
+            let hashrate = 0
+            let hashshare = 0
+            let fee = 0
+            let reward = 0
+            let elapsed = 0
+            for (const [workerId, worker] of workers) {
+                elapsed = Math.max(elapsed, worker.elapsed)
+                hashrate += worker.hashrate
+                hashshare += worker.hashshare
+                nodes++
+                fee += worker.fee
+                reward += worker.reward
+                this.poolHashshare += worker.hashshare
+            }
+            this.miners.set(address, {
+                _id: address,
+                elapsed,
+                elapsedStr: formatTime(elapsed),
+                fee,
+                hashrate,
+                hashshare,
+                nodes,
+                reward,
+            })
+        }
+    }
+    public updateRewardBase() {
+        for (const [address, miner] of this.miners) {
+            const reward = miner.reward / this.poolHashshare
+            const fee = miner.fee / this.poolHashshare
+            this.rewardBase.set(address, { fee, reward })
+        }
+    }
+    public release(workers: IWorker[]) {
+        this.updateDataSet(workers)
+        const workerCount = workers.length
+        const poolSummary = this.getPoolSummary(workerCount)
+        const poolMiners = this.getPoolMiners()
+        const poolWorkers = this.getPoolWorkers()
+        this.freehyconServer.mongoServer.addSummary(poolSummary)
+        this.freehyconServer.mongoServer.addMiners(poolMiners)
+        this.freehyconServer.mongoServer.addWorkers(poolWorkers)
+        logger.warn(`total(${workerCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.actualWorkers}): ${this.actualHashrate.toFixed(1)} H/s`)
+    }
+    public getPoolSummary(workerCount: number) {
+        const poolSummary: IPoolSumary = {
+            workerCount,
             poolHashrate: this.poolHashrate,
             poolHashshare: this.poolHashshare,
         }
+        return poolSummary
+    }
+    public getPoolMiners() {
+        const poolMiners: IMiner[] = Array.from(this.miners.values())
+        poolMiners.sort((a, b) => {
+            return b.hashshare - a.hashshare
+        })
+        for (const miner of poolMiners) {
+            miner.hashshare /= this.poolHashshare
+            miner.reward /= this.poolHashshare
+            miner.fee /= this.poolHashshare
+        }
         return poolMiners
+    }
+    public getPoolWorkers() {
+        const poolWorkers: IWorkMan[] = []
+        for (const [address, workers] of this.workers) {
+            for (const [workerId, worker] of workers) {
+                poolWorkers.push({
+                    address: worker.address,
+                    alive: worker.alive,
+                    workerId: worker.workerId,
+                    hashrate: worker.hashrate,
+                    hashshare: worker.hashshare / this.poolHashshare,
+                    elapsed: worker.elapsed,
+                    elapsedStr: worker.elapsedStr,
+                    reward: worker.reward / this.poolHashshare,
+                    fee: worker.fee / this.poolHashshare,
+                })
+            }
+        }
+        return poolWorkers
     }
     private reset() {
         this.poolHashshare = 0
         this.poolHashrate = 0
-        this.workerHash = 0
-        this.worker = 0
-        for (const [key, minerG] of this.minerG) {
-            minerG.nodes = 0
-            minerG.hashrate = 0
-            minerG.elapsed = 0
-            minerG.elapsedStr = "-"
+        this.actualWorkers = 0
+        this.actualHashrate = 0
+        this.miners.clear()
+        for (const [address, workers] of this.workers) {
+            for (const [workerId, worker] of workers) {
+                worker.alive = false
+                worker.hashrate = 0
+                worker.elapsedStr = "-"
+            }
         }
     }
+}
+function formatTime(second: number) {
+    if (second <= 0) { return "-" } else { second *= 0.001 }
+    const DAY = 86400
+    const HOUR = 3600
+    const MIN = 60
+    let count = 0
+    let res = ""
+    const day = Math.floor(second / DAY)
+    if (day > 0) {
+        count++
+        res += day + "d "
+        second -= day * DAY
+    }
+    const hour = Math.floor(second / HOUR)
+    if (hour > 0) {
+        count++
+        res += hour + "h "
+        second -= hour * HOUR
+        if (count > 1) { return res.trim() }
+    }
+    const min = Math.floor(second / MIN)
+    if (min > 0) {
+        count++
+        res += min + "m "
+        second -= min * MIN
+        if (count > 1) { return res.trim() }
+    }
+    return res + second.toFixed(0) + "s"
 }
