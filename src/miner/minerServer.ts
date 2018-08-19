@@ -13,7 +13,7 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
-import { IMinedBlocks, IMinerReward } from "./dataCenter"
+import { IMinedBlocks, IMinerReward, formatTime } from "./dataCenter"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("Miner")
 
@@ -46,6 +46,7 @@ export class MinerServer {
             this.runPollingSubmit()
             this.runPollingPayWages()
             this.runPollingUpdateBlockStatus()
+            this.runPollingUpdateLastBlock()
         }, 5000)
     }
     public async runPollingSubmit() {
@@ -59,6 +60,23 @@ export class MinerServer {
     public async runPollingUpdateBlockStatus() {
         this.updateBlockStatus()
         setTimeout(() => { this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
+    }
+
+    public async runPollingUpdateLastBlock() {
+        this.updateLastBlock()
+        setTimeout(() => { this.runPollingUpdateLastBlock() }, 5000)
+    }
+    public async updateLastBlock() {
+        const tip = this.consensus.getBlocksTip()
+        const block = await this.consensus.getBlockByHash(tip.hash)
+        if (!(block instanceof Block)) { return }
+        const lastBlock = {
+            height: tip.height,
+            blockHash: tip.hash.toString(),
+            miner: block.header.miner.toString(),
+            ago: formatTime(Date.now() - block.header.timeStamp) + " ago"
+        }
+        await this.mongoServer.updateLastBlock(lastBlock)
     }
     public async updateBlockStatus() {
         const rows = await this.mongoServer.getMinedBlocks()

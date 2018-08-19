@@ -61,11 +61,11 @@ export class FreeHyconServer {
     private readonly numJobBuffer = 10
     private readonly alphaIntern = 0.3
     private readonly meanTimeIntern = 20000
-    private readonly diffcultyIntern = 1. / (20. * 0.001 * this.meanTimeIntern / Math.LN2)
+    private readonly diffcultyIntern = 1. / (200. * 0.001 * this.meanTimeIntern / Math.LN2)
     private readonly alphaInterview = 0.06
     private readonly meanTimeInterview = 20000
-    private readonly numInternProblems = 3
-    private readonly numInterviewProblems = 3
+    private readonly numInternProblems = 15
+    private readonly numInterviewProblems = 15
     private readonly numDayoffProblems = 1
     private readonly timeoutClearBlacklist = 60000
     private readonly timeoutReleaseData = 10000

@@ -210,7 +210,7 @@ export class DataCenter {
         }
     }
 }
-function formatTime(second: number) {
+export function formatTime(second: number) {
     if (second <= 0) { return "-" } else { second *= 0.001 }
     const DAY = 86400
     const HOUR = 3600

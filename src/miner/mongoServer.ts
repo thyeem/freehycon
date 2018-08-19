@@ -6,7 +6,7 @@ export class MongoServer {
     public static readonly timeoutSubmit = 1000
     public static readonly timeoutPayWages = 10000
     public static readonly timeoutUpdateBlockStatus = 1800000
-    public static readonly confirmations = 2
+    public static readonly confirmations = 50
     private url: string = "mongodb://localhost:27017"
     private dbName = "freehycon"
     private client: MongoClient
@@ -110,6 +110,11 @@ export class MongoServer {
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
         const collection = this.db.collection(`MinedBlocks`)
         await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } }, { upsert: false })
+    }
+    public async updateLastBlock(block: { height: number, blockHash: string, miner: string, ago: string }) {
+        const collection = this.db.collection(`LastBlock`)
+        await collection.remove({})
+        await collection.insertOne(block)
     }
 
     public async getMinedBlocks(): Promise<any[]> {
