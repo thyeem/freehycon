@@ -76,7 +76,7 @@ export class MinerServer {
             miner: block.header.miner.toString(),
             ago: formatTime(Date.now() - block.header.timeStamp) + " ago"
         }
-        await this.mongoServer.updateLastBlock(lastBlock)
+        this.mongoServer.updateLastBlock(lastBlock)
     }
     public async updateBlockStatus() {
         const rows = await this.mongoServer.getMinedBlocks()

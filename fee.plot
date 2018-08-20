@@ -11,17 +11,17 @@ set xlabel "Time spent on FreeHycon (second)"
 set ylabel "Pool Fee (%)"
 
 ### SET OUTPUT SVG ###########################################
-# set terminal svg size 600,450 fname 'arial' fsize 18
-# set output 'fee.svg'
-# set key font    ",16"
-# set xtics font  ",16" offset 0
-# set ytics font  ",16" offset 0 
-# set xlabel font ",18" offset 0,0.5
-# set ylabel font ",18" offset 3
-# set style line 1 lc rgb 'red' pt 7 ps 1.3
-# set style line 2 lc rgb '#ff5d56' pt 7 ps 1.3
-# set style line 3 lc rgb '#ff9f9b' pt 7 ps 1.3
-# set style line 4 lc rgb '#f7c3c0' pt 7 ps 1.3
+set terminal svg size 600,400 fname 'Georgia' fsize 18
+set output 'fee.svg'
+set key font    ",16"
+set xtics font  ",16" offset 0
+set ytics font  ",16" offset 0 
+set xlabel font ",18" offset 0,0.5
+set ylabel font ",18" offset 3
+set style line 1 lc rgb 'red' pt 7 ps 1.2
+set style line 2 lc rgb '#ff5d56' pt 7 ps 1.2
+set style line 3 lc rgb '#ff9f9b' pt 7 ps 1.2
+set style line 4 lc rgb '#f7c3c0' pt 7 ps 1.2
 
 ##############################################################
 ### SET OUTPUT PNG ###########################################
@@ -39,16 +39,16 @@ set ylabel "Pool Fee (%)"
 
 ##############################################################
 ### SET OUTPUT WXT ###########################################
-set key font    ",16"
-set xtics font  ",16" offset 0
-set ytics font  ",16" offset 0 
-set xlabel font ",18" offset 0,0.0
-set ylabel font ",18" offset 0
-set style line 1 lc rgb 'red' pt 7 ps 2.5
-set style line 2 lc rgb '#ff5d56' pt 7 ps 2.5
-set style line 3 lc rgb '#ff9f9b' pt 7 ps 2.5
-set style line 4 lc rgb '#f7c3c0' pt 7 ps 2.5
-set bmargin at screen 0.1
+# set key font    ",16"
+# set xtics font  ",16" offset 0
+# set ytics font  ",16" offset 0 
+# set xlabel font ",18" offset 0,0.0
+# set ylabel font ",18" offset 0
+# set style line 1 lc rgb 'red' pt 7 ps 2.5
+# set style line 2 lc rgb '#ff5d56' pt 7 ps 2.5
+# set style line 3 lc rgb '#ff9f9b' pt 7 ps 2.5
+# set style line 4 lc rgb '#f7c3c0' pt 7 ps 2.5
+# set bmargin at screen 0.1
 ##############################################################
 
 set label '2.90 %' at 350, 2.8 font ",18" tc 'red'

@@ -118,14 +118,17 @@ export class DataCenter {
             let reward = 0
             let elapsed = 0
             for (const [workerId, worker] of workers) {
-                if (worker.alive) { nodes++ }
-                elapsed = Math.max(elapsed, worker.elapsed)
-                hashrate += worker.hashrate
+                if (worker.alive) {
+                    nodes++
+                    hashrate += worker.hashrate
+                    elapsed = Math.max(elapsed, worker.elapsed)
+                }
                 hashshare += worker.hashshare
                 fee += worker.fee
                 reward += worker.reward
                 this.poolHashshare += worker.hashshare
             }
+            if (nodes <= 0) { elapsed = 0 }
             this.miners.set(address, {
                 _id: address,
                 elapsed,
