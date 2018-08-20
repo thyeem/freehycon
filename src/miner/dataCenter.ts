@@ -118,10 +118,10 @@ export class DataCenter {
             let reward = 0
             let elapsed = 0
             for (const [workerId, worker] of workers) {
+                if (worker.alive) { nodes++ }
                 elapsed = Math.max(elapsed, worker.elapsed)
                 hashrate += worker.hashrate
                 hashshare += worker.hashshare
-                nodes++
                 fee += worker.fee
                 reward += worker.reward
                 this.poolHashshare += worker.hashshare
