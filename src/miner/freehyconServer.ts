@@ -239,7 +239,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-        )
+            )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
@@ -259,7 +259,7 @@ export class FreeHyconServer {
                 worker.inspector.submits++
                 worker.inspector.stop()
                 worker.inspector.jobTimer.lock = false
-                logger.error(`${nick}estimated hashrate(${worker.inspector.submits}): ${worker.hashrate.toFixed(1)} H/s`)
+                logger.error(`${nick}estimated hashrate(${worker.inspector.submits}): ${(0.001 * worker.hashrate).toFixed(2)} kH/s`)
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce

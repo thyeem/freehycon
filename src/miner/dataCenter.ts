@@ -71,7 +71,7 @@ export class DataCenter {
         this.updateRewardBase()
     }
     public loadWorkers(workers: IWorkMan[]) {
-        for (const worker of workers) {
+        for (let worker of workers) {
             let miner = this.workers.get(worker.address)
             if (miner === undefined) {
                 this.workers.set(worker.address, new Map<string, IWorkMan>())
@@ -163,7 +163,7 @@ export class DataCenter {
         this.mongoServer.addSummary(poolSummary)
         this.mongoServer.addMiners(poolMiners)
         this.mongoServer.addWorkers(poolWorkers)
-        logger.warn(`total(${this.aliveWorkers}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.actualWorkers}): ${this.actualHashrate.toFixed(1)} H/s`)
+        logger.warn(`total(${this.aliveWorkers}): ${(0.001 * this.poolHashrate).toFixed(2)} kH/s | working(${this.actualWorkers}): ${(0.001 * this.actualHashrate).toFixed(2)} kH/s`)
     }
     public getPoolSummary() {
         const poolSummary: IPoolSumary = {
@@ -195,11 +195,11 @@ export class DataCenter {
                     extra: worker.extra,
                     workerId: worker.workerId,
                     hashrate: worker.hashrate,
-                    hashshare: worker.hashshare / this.poolHashshare,
+                    hashshare: worker.hashshare,
                     elapsed: worker.elapsed,
                     elapsedStr: worker.elapsedStr,
-                    reward: worker.reward / this.poolHashshare,
-                    fee: worker.fee / this.poolHashshare,
+                    reward: worker.reward,
+                    fee: worker.fee,
                 })
             }
         }

@@ -48,7 +48,7 @@ export class RabbitNetwork implements INetwork {
     private natUpnp: NatUpnp
 
     constructor(txPool: ITxPool, consensus: IConsensus, port: number = 8148, peerDbPath: string = "peerdb", networkid: string = "hycon") {
-        RabbitNetwork.socketTimeout = 300000
+        RabbitNetwork.socketTimeout = 5000
         this.txPool = txPool
         this.consensus = consensus
         this.port = port
