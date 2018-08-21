@@ -194,8 +194,9 @@ export class FreeHyconServer {
         this.stratum.on("close", (socketId: any) => {
             const worker = this.mapWorker.get(socketId)
             if (worker !== undefined) {
-                logger.error(`Worker socket closed: ${worker.address} (${socketId})`)
+                this.dataCenter.leaveLegacy(worker)
                 this.mapWorker.delete(socketId)
+                logger.error(`Worker socket closed: ${worker.address} (${socketId})`)
             }
         })
         this.stratum.listen().done((msg: any) => { logger.fatal(msg) })

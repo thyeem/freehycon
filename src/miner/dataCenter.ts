@@ -48,7 +48,6 @@ export class DataCenter {
     public poolHashrate: number
     public actualHashrate: number
     public actualWorkers: number
-    public aliveWorkers: number
     public miners: Map<string, IMiner>
     public workers: Map<string, Map<string, IWorkMan>>
     private mongoServer: MongoServer
@@ -83,6 +82,7 @@ export class DataCenter {
     }
     public updateWorkers(workers: IWorker[]) {
         for (const worker of workers) {
+            this.poolHashrate += worker.hashrate
             if (worker.status === WorkerStatus.Working) {
                 this.actualHashrate += worker.hashrate
                 this.actualWorkers++
@@ -125,9 +125,7 @@ export class DataCenter {
             for (const [workerId, worker] of workers) {
                 if (worker.alive) {
                     nodes++
-                    this.aliveWorkers++
                     hashrate += worker.hashrate
-                    this.poolHashrate += worker.hashrate
                     elapsed = Math.max(elapsed, worker.elapsed)
                 }
                 fee += worker.fee
@@ -156,18 +154,19 @@ export class DataCenter {
         }
     }
     public release(workers: IWorker[]) {
+        const workerCount = workers.length
         this.updateDataSet(workers)
-        const poolSummary = this.getPoolSummary()
+        const poolSummary = this.getPoolSummary(workerCount)
         const poolMiners = this.getPoolMiners()
         const poolWorkers = this.getPoolWorkers()
         this.mongoServer.addSummary(poolSummary)
         this.mongoServer.addMiners(poolMiners)
         this.mongoServer.addWorkers(poolWorkers)
-        logger.warn(`total(${this.aliveWorkers}): ${(0.001 * this.poolHashrate).toFixed(2)} kH/s | working(${this.actualWorkers}): ${(0.001 * this.actualHashrate).toFixed(2)} kH/s`)
+        logger.warn(`total(${workerCount}): ${(0.001 * this.poolHashrate).toFixed(2)} kH/s | working(${this.actualWorkers}): ${(0.001 * this.actualHashrate).toFixed(2)} kH/s`)
     }
-    public getPoolSummary() {
+    public getPoolSummary(workerCount: number) {
         const poolSummary: IPoolSumary = {
-            workerCount: this.aliveWorkers,
+            workerCount,
             poolHashrate: this.poolHashrate,
             poolHashshare: this.poolHashshare,
         }
@@ -205,12 +204,18 @@ export class DataCenter {
         }
         return poolWorkers
     }
+    public leaveLegacy(worker: IWorker) {
+        const miner = this.workers.get(worker.address)
+        if (miner === undefined) { return }
+        const workMan = miner.get(worker.workerId)
+        if (workMan === undefined) { return }
+        workMan.extra = workMan.hashshare
+    }
     private reset() {
         this.poolHashshare = 0
         this.poolHashrate = 0
         this.actualWorkers = 0
         this.actualHashrate = 0
-        this.aliveWorkers = 0
         this.miners.clear()
         for (const [address, workers] of this.workers) {
             for (const [workerId, worker] of workers) {
