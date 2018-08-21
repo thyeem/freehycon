@@ -1,5 +1,6 @@
 import { getLogger } from "log4js"
-import { IWorker, WorkerStatus, FreeHyconServer } from "./freehyconServer"
+import { IWorker, WorkerStatus } from "./freehyconServer"
+import { MongoServer } from "./mongoServer"
 const logger = getLogger("dataCenter")
 
 export interface IPoolSumary {
@@ -20,6 +21,7 @@ export interface IMiner {
 export interface IWorkMan {
     address: string
     alive: boolean
+    extra: number
     workerId: string
     hashrate: number
     hashshare: number
@@ -46,18 +48,19 @@ export class DataCenter {
     public poolHashrate: number
     public actualHashrate: number
     public actualWorkers: number
+    public aliveWorkers: number
     public miners: Map<string, IMiner>
     public workers: Map<string, Map<string, IWorkMan>>
-    private freehyconServer: FreeHyconServer
-    constructor(freehyconServer: FreeHyconServer) {
-        this.freehyconServer = freehyconServer
+    private mongoServer: MongoServer
+    constructor(mongoServer: MongoServer) {
+        this.mongoServer = mongoServer
         this.miners = new Map<string, IMiner>()
         this.workers = new Map<string, Map<string, IWorkMan>>()
         this.rewardBase = new Map<string, IMinerReward>()
         this.minedBlocks = []
     }
     public async preload() {
-        const workers = await this.freehyconServer.mongoServer.loadWorkers()
+        const workers = await this.mongoServer.loadWorkers()
         this.reset()
         this.loadWorkers(workers)
     }
@@ -74,12 +77,12 @@ export class DataCenter {
                 this.workers.set(worker.address, new Map<string, IWorkMan>())
                 miner = this.workers.get(worker.address)
             }
+            worker.extra = worker.hashshare
             miner.set(worker.workerId, worker)
         }
     }
     public updateWorkers(workers: IWorker[]) {
         for (const worker of workers) {
-            this.poolHashrate += worker.hashrate
             if (worker.status === WorkerStatus.Working) {
                 this.actualHashrate += worker.hashrate
                 this.actualWorkers++
@@ -89,16 +92,18 @@ export class DataCenter {
                 this.workers.set(worker.address, new Map<string, IWorkMan>())
                 miner = this.workers.get(worker.address)
             }
-            const prior = miner.get(worker.workerId)
             let hashshare = worker.hashshare
-            if (prior !== undefined && prior.hashshare > hashshare) {
-                hashshare += prior.hashshare
-                this.freehyconServer.setWorkerHashshare(worker.socket.id, hashshare)
+            let extra = 0.
+            const prior = miner.get(worker.workerId)
+            if (prior !== undefined) {
+                hashshare += prior.extra
+                extra += prior.extra
             }
             const elapsed = Date.now() - worker.tickLogin
             miner.set(worker.workerId, {
                 address: worker.address,
                 alive: true,
+                extra,
                 workerId: worker.workerId,
                 hashrate: worker.hashrate,
                 hashshare,
@@ -112,20 +117,22 @@ export class DataCenter {
     public updateMiners() {
         for (const [address, workers] of this.workers) {
             let nodes = 0
-            let hashrate = 0
-            let hashshare = 0
-            let fee = 0
-            let reward = 0
+            let hashrate = 0.
+            let hashshare = 0.
+            let fee = 0.
+            let reward = 0.
             let elapsed = 0
             for (const [workerId, worker] of workers) {
                 if (worker.alive) {
                     nodes++
+                    this.aliveWorkers++
                     hashrate += worker.hashrate
+                    this.poolHashrate += worker.hashrate
                     elapsed = Math.max(elapsed, worker.elapsed)
                 }
-                hashshare += worker.hashshare
                 fee += worker.fee
                 reward += worker.reward
+                hashshare += worker.hashshare
                 this.poolHashshare += worker.hashshare
             }
             if (nodes <= 0) { elapsed = 0 }
@@ -150,18 +157,17 @@ export class DataCenter {
     }
     public release(workers: IWorker[]) {
         this.updateDataSet(workers)
-        const workerCount = workers.length
-        const poolSummary = this.getPoolSummary(workerCount)
+        const poolSummary = this.getPoolSummary()
         const poolMiners = this.getPoolMiners()
         const poolWorkers = this.getPoolWorkers()
-        this.freehyconServer.mongoServer.addSummary(poolSummary)
-        this.freehyconServer.mongoServer.addMiners(poolMiners)
-        this.freehyconServer.mongoServer.addWorkers(poolWorkers)
-        logger.warn(`total(${workerCount}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.actualWorkers}): ${this.actualHashrate.toFixed(1)} H/s`)
+        this.mongoServer.addSummary(poolSummary)
+        this.mongoServer.addMiners(poolMiners)
+        this.mongoServer.addWorkers(poolWorkers)
+        logger.warn(`total(${this.aliveWorkers}): ${this.poolHashrate.toFixed(1)} H/s | working(${this.actualWorkers}): ${this.actualHashrate.toFixed(1)} H/s`)
     }
-    public getPoolSummary(workerCount: number) {
+    public getPoolSummary() {
         const poolSummary: IPoolSumary = {
-            workerCount,
+            workerCount: this.aliveWorkers,
             poolHashrate: this.poolHashrate,
             poolHashshare: this.poolHashshare,
         }
@@ -186,6 +192,7 @@ export class DataCenter {
                 poolWorkers.push({
                     address: worker.address,
                     alive: worker.alive,
+                    extra: worker.extra,
                     workerId: worker.workerId,
                     hashrate: worker.hashrate,
                     hashshare: worker.hashshare / this.poolHashshare,
@@ -203,6 +210,7 @@ export class DataCenter {
         this.poolHashrate = 0
         this.actualWorkers = 0
         this.actualHashrate = 0
+        this.aliveWorkers = 0
         this.miners.clear()
         for (const [address, workers] of this.workers) {
             for (const [workerId, worker] of workers) {

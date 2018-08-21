@@ -85,7 +85,7 @@ export class FreeHyconServer {
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
-        this.dataCenter = new DataCenter(this)
+        this.dataCenter = new DataCenter(this.mongoServer)
         this.blacklist = new Set<string>()
         this.jobId = 0
         setTimeout(async () => {
@@ -95,10 +95,6 @@ export class FreeHyconServer {
             this.clearBlacklist()
             this.runPollingPutWork()
         }, 2000)
-    }
-    public setWorkerHashshare(socketId: string, hashshare: number) {
-        const worker = this.mapWorker.get(socketId)
-        if (worker !== undefined) { worker.hashshare = hashshare }
     }
     public async runPollingPutWork() {
         this.pollingPutWork()
