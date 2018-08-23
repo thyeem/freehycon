@@ -107,11 +107,11 @@ export abstract class BasePeer {
                 case "getHash":
                 case "getTip":
                 case "status":
-                    return 2000
+                    return 1000
                 case "getBlockTxs":
                 case "getHeadersByRange":
                 case "getBlocksByRange":
-                    return 4000
+                    return 6000
                 default:
                     return BasePeer.DefaultTimeoutTime
             }
