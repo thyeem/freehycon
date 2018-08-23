@@ -90,7 +90,7 @@ export class SocketParser {
     }
 
     public getInfo() {
-        return `Local=${this.socket.localAddress}:${this.socket.localPort}  Remote=${this.socket.remoteAddress}:${this.socket.remotePort} CurrentQueue=${this.sendLock.queueLength()}`
+        return `Local=${this.socket.localAddress}:${this.socket.localPort} -- Remote=${this.socket.remoteAddress}:${this.socket.remotePort} -- Queue=${this.sendLock.queueLength()}`
     }
 
     public getIp() {

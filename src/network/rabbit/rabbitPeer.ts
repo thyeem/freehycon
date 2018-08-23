@@ -525,8 +525,6 @@ export class RabbitPeer extends BasePeer implements IPeer {
         } catch (e) {
             logger.error(`Failed to getBlocksByRange: ${e}`)
             message = { getBlocksByRangeReturn: { success: false } }
-        } finally {
-            setTimeout(() => { this.socketBuffer.destroy() }, 1000)
         }
         return message
     }
@@ -541,8 +539,6 @@ export class RabbitPeer extends BasePeer implements IPeer {
         } catch (e) {
             logger.error(`Failed to getHeadersByRange: ${e}`)
             message = { getHeadersByRangeReturn: { success: false } }
-        } finally {
-            setTimeout(() => { this.socketBuffer.destroy() }, 1000)
         }
         return message
     }

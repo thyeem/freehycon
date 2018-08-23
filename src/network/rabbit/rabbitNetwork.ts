@@ -347,7 +347,7 @@ export class RabbitNetwork implements INetwork {
                 }
                 await this.peerDatabase.putPeers(info)
             }
-            logger.info(`Connected to ${peer.socketBuffer.getInfo()} GUID: ${peerStatus.guid}, Listening Port: ${port}`)
+            logger.info(`New connection -- ${peer.socketBuffer.getInfo()} -- GUID=${peerStatus.guid.slice(0, 8) + ".."}`)
             return peer
         } catch (e) { }
     }

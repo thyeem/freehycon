@@ -111,7 +111,7 @@ export abstract class BasePeer {
                 case "getBlockTxs":
                 case "getHeadersByRange":
                 case "getBlocksByRange":
-                    return 6000
+                    return 3000
                 default:
                     return BasePeer.DefaultTimeoutTime
             }
