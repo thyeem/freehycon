@@ -111,7 +111,7 @@ export class Sync {
             for (const peer of await this.network.getPeers()) {
                 promise.add(peer.getBTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
             }
-            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && peer.tip.totalwork > this.consensus.getBtip().totalWork
+            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getBtip().totalWork || peer.tip.height > this.consensus.getBtip().height)
             const { peer, tip } = await promise.race(filter)
             if (peer.getVersion() > 5) {
                 await peer.txSync(tip)

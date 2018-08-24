@@ -65,12 +65,12 @@ export class Consensus extends EventEmitter implements IConsensus {
             this.blockTip = await this.db.getBlockTip()
             this.headerTip = await this.db.getHeaderTip()
 
-            if (this.txdb !== undefined) {
-                await this.txdb.init(this, this.blockTip === undefined ? undefined : this.blockTip.height)
-            }
-            if (this.minedDatabase !== undefined) {
-                await this.minedDatabase.init(this, this.blockTip === undefined ? undefined : this.blockTip.height)
-            }
+            // if (this.txdb !== undefined) {
+            //     await this.txdb.init(this, this.blockTip === undefined ? undefined : this.blockTip.height)
+            // }
+            // if (this.minedDatabase !== undefined) {
+            //     await this.minedDatabase.init(this, this.blockTip === undefined ? undefined : this.blockTip.height)
+            // }
 
             if (this.blockTip === undefined) {
                 const genesis = await this.initGenesisBlock()

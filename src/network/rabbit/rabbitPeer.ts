@@ -18,6 +18,7 @@ import { IPeerDatabase } from "../ipeerDatabase"
 import { BasePeer } from "./basePeer"
 import { BYTES_OVERHEAD, HASH_SIZE, MAX_BLOCKS_PER_PACKET, MAX_HEADERS_PER_PACKET, MAX_PACKET_SIZE, MAX_TX_SIZE, MAX_TXS_PER_BLOCK, REPEATED_OVERHEAD } from "./networkConstants"
 import { RabbitNetwork } from "./rabbitNetwork"
+import delay = require('delay')
 const logger = getLogger("NetPeer")
 
 const DIFFICULTY_TOLERANCE = 0.05
@@ -25,8 +26,8 @@ const BROADCAST_LIMIT = 10
 
 export interface IBlockTxs { hash: Hash, txs: SignedTx[] }
 export class RabbitPeer extends BasePeer implements IPeer {
-    public static seenBlocksSet: Set<Hash> = new Set<Hash>()
-    public static seenBlocks: Hash[] = []
+    public static seenBlocksSet: Set<String> = new Set<String>()
+    public static seenBlocks: String[] = []
     public listenPort: number
     public guid: string
     private consensus: IConsensus
@@ -252,13 +253,13 @@ export class RabbitPeer extends BasePeer implements IPeer {
         const startHeight = Math.min(this.consensus.getHtip().height, remoteTip.height)
         const { height: commonHeight, hash: commonHash } = await this.commonSearch(startHeight, remoteTip.height - 1, BlockStatus.Header)
         logger.debug(`Found Start Header=${commonHeight}`)
-        return this.getHeaders(commonHeight, commonHash, remoteTip.height)
+        return await this.getHeaders(commonHeight, commonHash, remoteTip.height)
     }
     public async blockSync(remoteBlockTip: ITip) {
         const startHeight = Math.min(this.consensus.getBtip().height, remoteBlockTip.height)
         const { height: commonHeight, hash: commonHash } = await this.commonSearch(startHeight, remoteBlockTip.height - 1, BlockStatus.Block)
         logger.debug(`Found Start Block=${commonHeight}`)
-        return this.getBlocks(commonHeight, commonHash, remoteBlockTip.height)
+        return await this.getBlocks(commonHeight, commonHash, remoteBlockTip.height)
     }
 
     public async txSync(remoteTip: ITip) {
@@ -428,12 +429,13 @@ export class RabbitPeer extends BasePeer implements IPeer {
         }
 
         const blockHash = new Hash(block.header)
+        const blockHashstring = blockHash.toString()
         const status = await this.consensus.getBlockStatus(blockHash)
         if (status < BlockStatus.Nothing || status >= BlockStatus.Block) {
             return false
         }
 
-        if (RabbitPeer.seenBlocksSet.has(blockHash)) {
+        if (RabbitPeer.seenBlocksSet.has(blockHashstring)) {
             return false
         }
 
@@ -443,12 +445,12 @@ export class RabbitPeer extends BasePeer implements IPeer {
             return false
         }
 
-        RabbitPeer.seenBlocksSet.add(blockHash)
+        RabbitPeer.seenBlocksSet.add(blockHashstring)
         if (RabbitPeer.seenBlocks.length > 1000) {
             const [old] = RabbitPeer.seenBlocks.splice(0, 1)
             RabbitPeer.seenBlocksSet.delete(old)
         }
-        RabbitPeer.seenBlocks.push(blockHash)
+        RabbitPeer.seenBlocks.push(blockHashstring)
 
         return true
     }
@@ -518,6 +520,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetBlocksByRange(reply: boolean, request: proto.IGetBlocksByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
+            await delay(2000)
             const fromHeight = Number(request.fromHeight)
             const count = Number(request.count)
             const blocks = await this.consensus.getBlocksRange(fromHeight, count)
@@ -532,6 +535,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetHeadersByRange(reply: boolean, request: proto.IGetHeadersByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
+            await delay(2000)
             const fromHeight = Number(request.fromHeight)
             const count = Number(request.count)
             const headers = await this.consensus.getHeadersRange(fromHeight, count)
