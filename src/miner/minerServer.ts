@@ -45,7 +45,7 @@ export class MinerServer {
         setTimeout(() => {
             this.runPollingSubmit()
             this.runPollingPayWages()
-            this.runPollingUpdateBlockStatus()
+            // this.runPollingUpdateBlockStatus()
             this.runPollingUpdateLastBlock()
         }, 5000)
     }
