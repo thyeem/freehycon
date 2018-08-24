@@ -95,7 +95,7 @@ export class Sync {
             for (const peer of await this.network.getPeers()) {
                 promise.add(peer.getBTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
             }
-            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && peer.tip.totalwork > this.consensus.getHtip().totalWork
+            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getHtip().totalWork || peer.tip.height > this.consensus.getHtip().height)
             const { peer, tip } = await promise.race(filter)
             await peer.headerSync(tip)
         } catch (e) {

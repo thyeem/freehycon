@@ -18,7 +18,7 @@ import { IPeerDatabase } from "../ipeerDatabase"
 import { BasePeer } from "./basePeer"
 import { BYTES_OVERHEAD, HASH_SIZE, MAX_BLOCKS_PER_PACKET, MAX_HEADERS_PER_PACKET, MAX_PACKET_SIZE, MAX_TX_SIZE, MAX_TXS_PER_BLOCK, REPEATED_OVERHEAD } from "./networkConstants"
 import { RabbitNetwork } from "./rabbitNetwork"
-import delay = require('delay')
+import delay from "delay"
 const logger = getLogger("NetPeer")
 
 const DIFFICULTY_TOLERANCE = 0.05
@@ -253,13 +253,13 @@ export class RabbitPeer extends BasePeer implements IPeer {
         const startHeight = Math.min(this.consensus.getHtip().height, remoteTip.height)
         const { height: commonHeight, hash: commonHash } = await this.commonSearch(startHeight, remoteTip.height - 1, BlockStatus.Header)
         logger.debug(`Found Start Header=${commonHeight}`)
-        return await this.getHeaders(commonHeight, commonHash, remoteTip.height)
+        return this.getHeaders(commonHeight, commonHash, remoteTip.height)
     }
     public async blockSync(remoteBlockTip: ITip) {
         const startHeight = Math.min(this.consensus.getBtip().height, remoteBlockTip.height)
         const { height: commonHeight, hash: commonHash } = await this.commonSearch(startHeight, remoteBlockTip.height - 1, BlockStatus.Block)
         logger.debug(`Found Start Block=${commonHeight}`)
-        return await this.getBlocks(commonHeight, commonHash, remoteBlockTip.height)
+        return this.getBlocks(commonHeight, commonHash, remoteBlockTip.height)
     }
 
     public async txSync(remoteTip: ITip) {
