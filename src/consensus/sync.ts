@@ -95,7 +95,8 @@ export class Sync {
             for (const peer of await this.network.getPeers()) {
                 promise.add(peer.getBTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
             }
-            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getHtip().totalWork || peer.tip.height > this.consensus.getHtip().height)
+            // const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getHtip().totalWork || peer.tip.height > this.consensus.getHtip().height)
+            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && peer.tip.totalwork > this.consensus.getHtip().totalWork
             const { peer, tip } = await promise.race(filter)
             await peer.headerSync(tip)
         } catch (e) {
@@ -111,7 +112,8 @@ export class Sync {
             for (const peer of await this.network.getPeers()) {
                 promise.add(peer.getBTip().then((tip) => ({ peer, tip })).catch((e) => logger.debug(e)))
             }
-            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getBtip().totalWork || peer.tip.height > this.consensus.getBtip().height)
+            // const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && (peer.tip.totalwork > this.consensus.getBtip().totalWork || peer.tip.height > this.consensus.getBtip().height)
+            const filter = (peer: ICandidatePeer) => peer !== undefined && peer.tip !== undefined && peer.tip.totalwork > this.consensus.getBtip().totalWork
             const { peer, tip } = await promise.race(filter)
             if (peer.getVersion() > 5) {
                 await peer.txSync(tip)
