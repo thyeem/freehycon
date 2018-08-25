@@ -147,7 +147,7 @@ export class RabbitNetwork implements INetwork {
         this.broadcast(packet)
     }
 
-    public broadcast(packet: Uint8Array, exempt?: RabbitPeer) {
+    public async broadcast(packet: Uint8Array, exempt?: RabbitPeer) {
         for (const [key, peer] of this.peers) {
             if (peer !== exempt) {
                 peer.sendPacket(packet).catch((e) => logger.debug(e)) // TODO:

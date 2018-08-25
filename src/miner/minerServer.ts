@@ -119,14 +119,15 @@ export class MinerServer {
                     if (isMainchain) {
                         const rewardBase = new Map<string, IMinerReward>()
                         for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
-                        await this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
-                        await this.mongoServer.deletePayWage(pay._id)
+                        this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
+                        this.mongoServer.deletePayWage(pay._id)
                     } else {
-                        await this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
-                        await this.mongoServer.deletePayWage(pay._id)
+                        this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
+                        this.mongoServer.deletePayWage(pay._id)
                     }
+                    return
                 } else {
-                    await this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
+                    this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
                 }
             }
         }
