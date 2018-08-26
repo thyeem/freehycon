@@ -485,65 +485,69 @@ export class RabbitPeer extends BasePeer implements IPeer {
 
     private async respondGetBlocksByHash(reply: boolean, request: proto.IGetBlocksByHash): Promise<proto.INetwork> {
         let message: proto.INetwork
-        try {
-            const blockPromise: Array<Promise<AnyBlock>> = []
-            for (const iHash of request.hashes) {
-                const hash = new Hash(iHash)
-                blockPromise.push(this.consensus.getBlockByHash(hash))
-            }
-            const blocks = await Promise.all(blockPromise)
-            message = { getBlocksByHashReturn: { success: true, blocks } }
-        } catch (e) {
-            logger.error(`Failed to getBlockByHash: ${e}`)
-            message = { getBlocksByHashReturn: { success: false } }
-        }
+        // try {
+        //     const blockPromise: Array<Promise<AnyBlock>> = []
+        //     for (const iHash of request.hashes) {
+        //         const hash = new Hash(iHash)
+        //         blockPromise.push(this.consensus.getBlockByHash(hash))
+        //     }
+        //     const blocks = await Promise.all(blockPromise)
+        //     message = { getBlocksByHashReturn: { success: true, blocks } }
+        // } catch (e) {
+        //     logger.error(`Failed to getBlockByHash: ${e}`)
+        //     message = { getBlocksByHashReturn: { success: false } }
+        // }
+        message = { getBlocksByHashReturn: { success: false } }
         return message
     }
 
     private async respondGetHeadersByHash(reply: boolean, request: proto.IGetHeadersByHash): Promise<proto.INetwork> {
         let message: proto.INetwork
-        try {
-            const headerPromise: Array<Promise<AnyBlockHeader>> = []
-            for (const iHash of request.hashes) {
-                const hash = new Hash(iHash)
-                headerPromise.push(this.consensus.getHeaderByHash(hash))
-            }
-            const headers = await Promise.all(headerPromise)
-            message = { getHeadersByHashReturn: { success: true, headers } }
-        } catch (e) {
-            logger.error(`Failed to getHeaderByHash: ${e}`)
-            message = { getBlocksByHashReturn: { success: false } }
-        }
+        // try {
+        //     const headerPromise: Array<Promise<AnyBlockHeader>> = []
+        //     for (const iHash of request.hashes) {
+        //         const hash = new Hash(iHash)
+        //         headerPromise.push(this.consensus.getHeaderByHash(hash))
+        //     }
+        //     const headers = await Promise.all(headerPromise)
+        //     message = { getHeadersByHashReturn: { success: true, headers } }
+        // } catch (e) {
+        //     logger.error(`Failed to getHeaderByHash: ${e}`)
+        //     message = { getBlocksByHashReturn: { success: false } }
+        // }
+        message = { getBlocksByHashReturn: { success: false } }
         return message
     }
 
     private async respondGetBlocksByRange(reply: boolean, request: proto.IGetBlocksByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
-        try {
-            await delay(2000)
-            const fromHeight = Number(request.fromHeight)
-            const count = Number(request.count)
-            const blocks = await this.consensus.getBlocksRange(fromHeight, count)
-            message = { getBlocksByRangeReturn: { success: true, blocks } }
-        } catch (e) {
-            logger.error(`Failed to getBlocksByRange: ${e}`)
-            message = { getBlocksByRangeReturn: { success: false } }
-        }
+        // try {
+        //     await delay(2000)
+        //     const fromHeight = Number(request.fromHeight)
+        //     const count = Number(request.count)
+        //     const blocks = await this.consensus.getBlocksRange(fromHeight, count)
+        //     message = { getBlocksByRangeReturn: { success: true, blocks } }
+        // } catch (e) {
+        //     logger.error(`Failed to getBlocksByRange: ${e}`)
+        //     message = { getBlocksByRangeReturn: { success: false } }
+        // }
+        message = { getBlocksByRangeReturn: { success: false } }
         return message
     }
 
     private async respondGetHeadersByRange(reply: boolean, request: proto.IGetHeadersByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
-        try {
-            await delay(2000)
-            const fromHeight = Number(request.fromHeight)
-            const count = Number(request.count)
-            const headers = await this.consensus.getHeadersRange(fromHeight, count)
-            message = { getHeadersByRangeReturn: { success: true, headers } }
-        } catch (e) {
-            logger.error(`Failed to getHeadersByRange: ${e}`)
-            message = { getHeadersByRangeReturn: { success: false } }
-        }
+        // try {
+        //     await delay(2000)
+        //     const fromHeight = Number(request.fromHeight)
+        //     const count = Number(request.count)
+        //     const headers = await this.consensus.getHeadersRange(fromHeight, count)
+        //     message = { getHeadersByRangeReturn: { success: true, headers } }
+        // } catch (e) {
+        //     logger.error(`Failed to getHeadersByRange: ${e}`)
+        //     message = { getHeadersByRangeReturn: { success: false } }
+        // }
+        message = { getHeadersByRangeReturn: { success: false } }
         return message
     }
 
@@ -584,22 +588,23 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetBlockTxs(reply: boolean, request: proto.IGetBlockTxs): Promise<proto.INetwork> {
         let message: proto.INetwork
         const txBlocks: proto.IBlockTxs[] = []
-        let packetSize = 0
-        try {
-            for (const ihash of request.hashes) {
-                const hash = new Hash(ihash)
-                const txBlock = await this.consensus.getBlockTxs(hash)
-                txBlocks.push(txBlock)
-                packetSize += HASH_SIZE + BYTES_OVERHEAD + REPEATED_OVERHEAD + txBlock.txs.length * MAX_TX_SIZE
-                if (packetSize > MAX_PACKET_SIZE - MAX_TXS_PER_BLOCK * MAX_TX_SIZE) {
-                    break
-                }
-            }
+        // let packetSize = 0
+        // try {
+        //     for (const ihash of request.hashes) {
+        //         const hash = new Hash(ihash)
+        //         const txBlock = await this.consensus.getBlockTxs(hash)
+        //         txBlocks.push(txBlock)
+        //         packetSize += HASH_SIZE + BYTES_OVERHEAD + REPEATED_OVERHEAD + txBlock.txs.length * MAX_TX_SIZE
+        //         if (packetSize > MAX_PACKET_SIZE - MAX_TXS_PER_BLOCK * MAX_TX_SIZE) {
+        //             break
+        //         }
+        //     }
 
-            message = { getBlockTxsReturn: { txBlocks } }
-        } catch (e) {
-            logger.debug(`Failed to send block txs: ${e}`)
-        }
+        //     message = { getBlockTxsReturn: { txBlocks } }
+        // } catch (e) {
+        //     logger.debug(`Failed to send block txs: ${e}`)
+        // }
+        message = { getBlockTxsReturn: { txBlocks } }
         return message
     }
 
