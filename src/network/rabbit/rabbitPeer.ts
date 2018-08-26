@@ -6,7 +6,7 @@ import { AnyBlockHeader, BlockHeader } from "../../common/blockHeader"
 import { BaseBlockHeader } from "../../common/genesisHeader"
 import { ITxPool } from "../../common/itxPool"
 import { SignedTx } from "../../common/txSigned"
-import { TIMESTAMP_TOLERANCE } from "../../consensus/consensus"
+// import { TIMESTAMP_TOLERANCE } from "../../consensus/consensus"
 import { IConsensus, IStatusChange } from "../../consensus/iconsensus"
 import { BlockStatus, ITip } from "../../consensus/sync"
 import { globalOptions } from "../../main"
@@ -22,7 +22,7 @@ import delay from "delay"
 const logger = getLogger("NetPeer")
 
 const DIFFICULTY_TOLERANCE = 0.05
-const BROADCAST_LIMIT = 5
+const BROADCAST_LIMIT = 10
 
 export interface IBlockTxs { hash: Hash, txs: SignedTx[] }
 export class RabbitPeer extends BasePeer implements IPeer {
@@ -419,23 +419,23 @@ export class RabbitPeer extends BasePeer implements IPeer {
     }
 
     private async blockBroadcastCondition(block: Block) {
-        const timeDelta = Math.abs(block.header.timeStamp - Date.now())
-        if (timeDelta > TIMESTAMP_TOLERANCE) {
-            return false
-        }
-        const merkleRoot = Block.calculateMerkleRoot(block.txs)
-        if (!block.header.merkleRoot.equals(merkleRoot)) {
+        // const timeDelta = Math.abs(block.header.timeStamp - Date.now())
+        // if (timeDelta > TIMESTAMP_TOLERANCE) {
+        //     return false
+        // }
+        const blockHash = new Hash(block.header)
+        const blockHashstring = blockHash.toString()
+        if (RabbitPeer.seenBlocksSet.has(blockHashstring)) {
             return false
         }
 
-        const blockHash = new Hash(block.header)
-        const blockHashstring = blockHash.toString()
         const status = await this.consensus.getBlockStatus(blockHash)
         if (status < BlockStatus.Nothing || status >= BlockStatus.Block) {
             return false
         }
 
-        if (RabbitPeer.seenBlocksSet.has(blockHashstring)) {
+        const merkleRoot = Block.calculateMerkleRoot(block.txs)
+        if (!block.header.merkleRoot.equals(merkleRoot)) {
             return false
         }
 
@@ -461,16 +461,12 @@ export class RabbitPeer extends BasePeer implements IPeer {
             const decay = (Date.now() - this.lastReceivedTime) / 1000
             this.lastReceivedTime = Date.now()
             this.receivedBroadcasts = Math.max(0, this.receivedBroadcasts - decay)
-
-            if (this.receivedBroadcasts > BROADCAST_LIMIT) {
-                return
-            }
+            if (this.receivedBroadcasts > BROADCAST_LIMIT) { return }
 
             request.blocks = request.blocks.slice(0, 1)
             let block: Block
             try {
                 block = new Block(request.blocks[0])
-
                 if (this.blockBroadcastCondition(block)) {
                     rebroadcast()
                 }
@@ -479,7 +475,6 @@ export class RabbitPeer extends BasePeer implements IPeer {
                 logger.debug(e)
             }
         })
-
         return { putBlockReturn: { statusChanges: [] } }
     }
 
