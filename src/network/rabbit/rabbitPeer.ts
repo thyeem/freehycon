@@ -22,7 +22,7 @@ import delay from "delay"
 const logger = getLogger("NetPeer")
 
 const DIFFICULTY_TOLERANCE = 0.05
-const BROADCAST_LIMIT = 10
+const BROADCAST_LIMIT = 5
 
 export interface IBlockTxs { hash: Hash, txs: SignedTx[] }
 export class RabbitPeer extends BasePeer implements IPeer {
