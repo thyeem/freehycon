@@ -522,7 +522,6 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetBlocksByRange(reply: boolean, request: proto.IGetBlocksByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         // try {
-        //     await delay(2000)
         //     const fromHeight = Number(request.fromHeight)
         //     const count = Number(request.count)
         //     const blocks = await this.consensus.getBlocksRange(fromHeight, count)
@@ -538,7 +537,6 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetHeadersByRange(reply: boolean, request: proto.IGetHeadersByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         // try {
-        //     await delay(2000)
         //     const fromHeight = Number(request.fromHeight)
         //     const count = Number(request.count)
         //     const headers = await this.consensus.getHeadersRange(fromHeight, count)
