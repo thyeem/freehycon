@@ -1,0 +1,8 @@
+#!/usr/bin/perl 
+
+my $target = 'blockdb rawblock worldstate minedDBsql peerdbsql txDBsql';
+
+for (split / /, $target) {
+    system("/usr/bin/scp -r -i ~/.hycon.pem $target ubuntu\@node1a.freehycon.com:~/freehycon");
+}
+
