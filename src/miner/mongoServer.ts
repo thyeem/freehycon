@@ -123,4 +123,9 @@ export class MongoServer {
         const rows = await collection.find({}).limit(100).toArray()
         return rows
     }
+    public async addDisconnections(disconnInfo: { address: string, workerId: string, timeStamp: number }) {
+        if (disconnInfo === undefined) { return }
+        const collection = this.db.collection(`Disconnections`)
+        await collection.insertOne(disconnInfo)
+    }
 }

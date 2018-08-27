@@ -191,9 +191,10 @@ export class FreeHyconServer {
             }
         })
         this.stratum.on("mining.error", (error: any, socket: any) => { logger.error("Mining error: ", error) })
-        this.stratum.on("close", (socketId: any) => {
+        this.stratum.on("close", async (socketId: any) => {
             const worker = this.mapWorker.get(socketId)
             if (worker !== undefined) {
+                await this.mongoServer.addDisconnections({ address: worker.address, workerId: worker.address, timeStamp: Date.now() })
                 this.dataCenter.leaveLegacy(worker)
                 this.mapWorker.delete(socketId)
                 logger.error(`Worker socket closed: ${worker.address} (${socketId})`)
@@ -240,7 +241,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-            )
+        )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
