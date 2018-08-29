@@ -255,9 +255,14 @@ export class RabbitNetwork implements INetwork {
                 socket.once("error", () => reject(`Failed to connect to ${key}: ${host}:${port}`))
                 socket.once("timeout", () => reject(`Timeout to connect to ${key}: ${host}:${port}`))
                 socket.connect({ host, port }, async () => {
-                    const newPeer = await this.newConnection(socket, save)
-                    ipeer.host = socket.remoteAddress
-                    resolve(newPeer)
+                    try {
+                        const newPeer = await this.newConnection(socket, save)
+                        ipeer.host = socket.remoteAddress
+                        resolve(newPeer)
+                    }
+                    catch(e) {
+                        reject(e)
+                    }
                 })
             }).catch(() => undefined)
             this.pendingConnections.set(key, peerPromise)
