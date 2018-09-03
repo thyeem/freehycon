@@ -8,7 +8,7 @@ const numCPUs = require("os").cpus().length;
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
-  //  runFreehycon(true);
+  runFreehycon(true);
 
   // Fork workers.
   for (let i = 0; i < 1; i++) {
