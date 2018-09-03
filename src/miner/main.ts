@@ -11,7 +11,7 @@ if (cluster.isMaster) {
   runFreehycon(true);
 
   // Fork workers.
-  for (let i = 0; i < 1; i++) {
+  for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
 
