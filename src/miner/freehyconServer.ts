@@ -82,7 +82,7 @@ export class FreeHyconServer {
     constructor(mongoServer: MongoServer, port: number = 9081) {
         this.mongoServer = mongoServer
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
+        this.stratum = new LibStratum({ settings: { hostname: "localhost", host: "localhost", port: this.port, toobusy: 2000 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
@@ -241,7 +241,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-        )
+            )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
