@@ -467,10 +467,10 @@ export class RabbitPeer extends BasePeer implements IPeer {
             let block: Block
             try {
                 block = new Block(request.blocks[0])
+                await this.consensus.putBlock(block)
                 if (await this.blockBroadcastCondition(block)) {
                     rebroadcast()
                 }
-                await this.consensus.putBlock(block)
             } catch (e) {
                 logger.debug(e)
             }

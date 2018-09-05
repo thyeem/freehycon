@@ -48,7 +48,7 @@ export class RabbitNetwork implements INetwork {
     private natUpnp: NatUpnp
 
     constructor(txPool: ITxPool, consensus: IConsensus, port: number = 8148, peerDbPath: string = "peerdb", networkid: string = "hycon") {
-        RabbitNetwork.socketTimeout = 4000
+        RabbitNetwork.socketTimeout = 3000
         this.txPool = txPool
         this.consensus = consensus
         this.port = port
@@ -260,7 +260,7 @@ export class RabbitNetwork implements INetwork {
                         ipeer.host = socket.remoteAddress
                         resolve(newPeer)
                     }
-                    catch(e) {
+                    catch (e) {
                         reject(e)
                     }
                 })
