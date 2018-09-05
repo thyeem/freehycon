@@ -11,6 +11,7 @@ import { DataCenter } from "./dataCenter"
 import { WorkerInspector } from "./workerInspector"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
+import { RabbitmqServer } from "./rabbitServer";
 
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
@@ -78,9 +79,12 @@ export class FreeHyconServer {
     private dataCenter: DataCenter
     private ongoingPrehash: string
     public mongoServer: MongoServer
+    public queuePutWork: RabbitmqServer;
+    public queueSubmitWork: RabbitmqServer;
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
         this.mongoServer = mongoServer
+        this.setupRabbitMQ()
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
         this.mapJob = new Map<number, IJob>()
@@ -96,6 +100,17 @@ export class FreeHyconServer {
             this.runPollingPutWork()
         }, 2000)
     }
+
+    public async setupRabbitMQ() {
+        this.queuePutWork = new RabbitmqServer("putwork");
+        await this.queuePutWork.initialize();
+        this.queueSubmitWork = new RabbitmqServer("submitwork");
+        await this.queueSubmitWork.initialize();
+        this.queuePutWork.receive((msg: any) => {
+          logger.info(" [x] Received %s", msg.content.toString());
+        });
+      }
+
     public async runPollingPutWork() {
         this.pollingPutWork()
         setTimeout(() => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
@@ -242,7 +257,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-        )
+            )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {

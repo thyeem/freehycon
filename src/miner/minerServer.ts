@@ -15,6 +15,7 @@ import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { IMinedBlocks, IMinerReward, formatTime } from "./dataCenter"
 import { MongoServer } from "./mongoServer"
+import { RabbitmqServer } from "./rabbitServer";
 const logger = getLogger("Miner")
 
 export class MinerServer {
@@ -28,6 +29,8 @@ export class MinerServer {
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
     public mongoServer: MongoServer
+    public queuePutWork: RabbitmqServer;
+    public queueSubmitWork: RabbitmqServer;
     public txpool: ITxPool
     public consensus: IConsensus
     public network: INetwork
@@ -40,6 +43,7 @@ export class MinerServer {
         this.consensus = consensus
         this.network = network
         this.mongoServer = new MongoServer()
+        this.setupRabbitMQ();
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(() => {
@@ -49,6 +53,17 @@ export class MinerServer {
             this.runPollingUpdateLastBlock()
         }, 5000)
     }
+    public async setupRabbitMQ() {
+        this.queuePutWork = new RabbitmqServer("putwork");
+        await this.queuePutWork.initialize();
+        this.queueSubmitWork = new RabbitmqServer("submitwork");
+        await this.queueSubmitWork.initialize();
+        setInterval(() => {
+          let m = `Put Work ${new Date()}`;
+          logger.info(`Send ${m}`);
+          this.queuePutWork.send(m);
+        }, 1000);
+      }
     public async runPollingSubmit() {
         this.pollingSubmit()
         setTimeout(() => { this.runPollingSubmit() }, MongoServer.timeoutSubmit)
