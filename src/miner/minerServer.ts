@@ -47,7 +47,7 @@ export class MinerServer {
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(() => {
-            this.runPollingSubmit()
+
             this.runPollingPayWages()
             // this.runPollingUpdateBlockStatus()
             this.runPollingUpdateLastBlock()
@@ -58,16 +58,16 @@ export class MinerServer {
         await this.queuePutWork.initialize();
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
-        setInterval(() => {
-          let m = `Put Work ${new Date()}`;
-          logger.info(`Send ${m}`);
-          this.queuePutWork.send(m);
-        }, 1000);
-      }
-    public async runPollingSubmit() {
-        this.pollingSubmit()
-        setTimeout(() => { this.runPollingSubmit() }, MongoServer.timeoutSubmit)
+        this.queueSubmitWork.receive((msg: any) => {
+            //logger.info(" [x] Received Submit Block %s", msg.content.toString());
+            let one = JSON.parse(msg.content.toString())
+            const block = Block.decode(Buffer.from(one.block)) as Block
+            const prehash = Buffer.from(one.prehash)
+            //logger.info(`Block ${JSON.stringify(block)}`)
+            this.processSubmitBlock({ block, prehash })
+        });
     }
+
     public async runPollingPayWages() {
         this.pollingPayWages()
         setTimeout(() => { this.runPollingPayWages() }, MongoServer.timeoutPayWages)
@@ -102,24 +102,20 @@ export class MinerServer {
             await this.mongoServer.updateBlockStatus(row.hash, isMainchain)
         }
     }
-    public async pollingSubmit() {
-        const foundWorks = await this.mongoServer.pollingSubmitWork()
-        if (foundWorks.length > 0) {
-            for (const found of foundWorks) {
-                await this.submitBlock(found.block)
-                const hash = new Hash(found.block.header)
-                const status = await this.consensus.getBlockStatus(hash)
-                const height = await this.consensus.getBlockHeight(hash)
-                const newBlock: IMinedBlocks = {
-                    hash: hash.toString(),
-                    height,
-                    mainchain: status === BlockStatus.MainChain,
-                    prevHash: found.block.header.previousHash[0].toString(),
-                    timestamp: found.block.header.timeStamp,
-                }
-                this.mongoServer.addMinedBlock(newBlock)
-            }
+
+    public async processSubmitBlock(found: any) {
+        await this.submitBlock(found.block)
+        const hash = new Hash(found.block.header)
+        const status = await this.consensus.getBlockStatus(hash)
+        const height = await this.consensus.getBlockHeight(hash)
+        const newBlock: IMinedBlocks = {
+            hash: hash.toString(),
+            height,
+            mainchain: status === BlockStatus.MainChain,
+            prevHash: found.block.header.previousHash[0].toString(),
+            timestamp: found.block.header.timeStamp,
         }
+        this.mongoServer.addMinedBlock(newBlock)
     }
     public async pollingPayWages() {
         const pays = await this.mongoServer.pollingPayWages()
@@ -181,6 +177,7 @@ export class MinerServer {
             txs: validTxs,
         })
         const prehash = block.header.preHash()
-        this.mongoServer.putWork(block, prehash)
+        const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
+        this.queuePutWork.send(JSON.stringify(putWorkData))
     }
 }

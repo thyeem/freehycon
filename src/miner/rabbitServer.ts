@@ -1,13 +1,18 @@
 import { connect, Connection, Channel } from "amqplib";
 import { getLogger } from "log4js";
+import { MongoServer } from './mongoServer';
+
 const logger = getLogger("RabbitMQ");
 export class RabbitmqServer {
   conn: Connection = undefined;
   channel: Channel = undefined;
   ip: string = "amqp://localhost";
-  //ip: string = "amqp://172.31.20.102"
+  //ip: string = 
   queueName: string = "hello";
   public constructor(queueName: string) {
+    if (MongoServer.isReal) {
+      this.ip = "amqp://172.31.20.102"
+    }
     if (queueName !== undefined) this.queueName = queueName;
     this.initialize();
   }
@@ -34,6 +39,7 @@ export class RabbitmqServer {
   }
 
   public send(msg: any) {
-    this.channel.sendToQueue(this.queueName, Buffer.from(msg));
+    if (this.channel !== undefined)
+      this.channel.sendToQueue(this.queueName, Buffer.from(msg));
   }
 }

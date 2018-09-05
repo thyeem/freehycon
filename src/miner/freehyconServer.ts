@@ -65,8 +65,9 @@ export class FreeHyconServer {
     private readonly diffcultyIntern = 1. / (200. * 0.001 * this.meanTimeIntern / Math.LN2)
     private readonly alphaInterview = 0.06
     private readonly meanTimeInterview = 20000
-    private readonly numInternProblems = 15
-    private readonly numInterviewProblems = 15
+    private numInternProblems = 15
+    private numInterviewProblems = 15
+
     private readonly numDayoffProblems = 1
     private readonly timeoutClearBlacklist = 60000
     private readonly timeoutReleaseData = 10000
@@ -83,6 +84,10 @@ export class FreeHyconServer {
     public queueSubmitWork: RabbitmqServer;
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
+        if (!MongoServer.isReal) {
+            this.numInternProblems = 1
+            this.numInterviewProblems = 1
+        }
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
@@ -97,7 +102,7 @@ export class FreeHyconServer {
             this.init()
             this.releaseData()
             this.clearBlacklist()
-            this.runPollingPutWork()
+
         }, 2000)
     }
 
@@ -107,27 +112,14 @@ export class FreeHyconServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
         this.queuePutWork.receive((msg: any) => {
-          logger.info(" [x] Received %s", msg.content.toString());
+            //logger.info(" [x] Received PutWork %s", msg.content.toString());
+            let one = JSON.parse(msg.content.toString())
+            const block = Block.decode(Buffer.from(one.block)) as Block
+            const prehash = Buffer.from(one.prehash)
+            this.putWork(block, prehash)
         });
-      }
+    }
 
-    public async runPollingPutWork() {
-        this.pollingPutWork()
-        setTimeout(() => { this.runPollingPutWork() }, MongoServer.timeoutPutWork)
-    }
-    public async pollingPutWork() {
-        const foundWorks = await this.mongoServer.pollingPutWork()
-        if (foundWorks.length > 0) {
-            const found = foundWorks[0]
-            const newPrehash = found.prehash.toString("hex")
-            if (newPrehash !== this.ongoingPrehash) {
-                this.stop()
-                this.ongoingPrehash = newPrehash
-                this.putWork(found.block, found.prehash)
-                logger.warn(`Polling PutWork: ${found.prehash.toString("hex").slice(0, 16)}`)
-            }
-        }
-    }
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
@@ -281,7 +273,10 @@ export class FreeHyconServer {
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                this.mongoServer.submitBlock(minedBlock, minedBlock.header.preHash())
+                let prehash = minedBlock.header.preHash()
+                const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
+                this.queueSubmitWork.send(JSON.stringify(submitData))
+
                 this.stop()
                 const rewardBase = this.newRound()
                 const blockHash = new Hash(minedBlock.header)

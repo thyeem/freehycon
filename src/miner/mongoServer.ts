@@ -2,60 +2,29 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
 export class MongoServer {
+    public static readonly isReal = true
     public static readonly timeoutPutWork = 200
     public static readonly timeoutSubmit = 200
     public static readonly timeoutPayWages = 30000
     public static readonly timeoutUpdateBlockStatus = 1800000
     public static readonly confirmations = 50
-    //private url: string = "mongodb://localhost:27017"
-    private url: string = "mongodb://172.31.20.102:27017"
+    private url: string = "mongodb://localhost:27017"
+
     private dbName = "freehycon"
     private client: MongoClient
     private db: Db
     constructor() {
+        if (MongoServer.isReal) {
+            this.url = "mongodb://172.31.20.102:27017"
+        }
         this.init()
     }
     public async init() {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
     }
-    public async putWork(block: Block, prehash: Uint8Array) {
-        const collection = this.db.collection(`Works`)
-        const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
-        await collection.remove({})
-        await collection.insertOne(putWorkData)
-    }
-    public async pollingPutWork() {
-        const returnRows: any[] = []
-        if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`Works`)
-        const rows = await collection.find({}).limit(10).toArray()
-        for (const one of rows) {
-            const block = Block.decode(one.block.buffer)
-            const prehash = Buffer.from(one.prehash.buffer as Buffer)
-            returnRows.push({ block, prehash })
-        }
-        return returnRows
-    }
-    public async submitBlock(block: Block, prehash: Uint8Array) {
-        const collection = this.db.collection(`Submits`)
-        const submit = { block: block.encode(), prehash: Buffer.from(prehash) }
-        await collection.remove({})
-        await collection.insertOne(submit)
-    }
-    public async pollingSubmitWork() {
-        const returnRows: any[] = []
-        if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`Submits`)
-        const rows = await collection.find({}).limit(10).toArray()
-        for (const one of rows) {
-            collection.deleteOne({ _id: one._id })
-            const block = Block.decode(one.block.buffer)
-            const prehash = Buffer.from(one.prehash.buffer as Buffer)
-            returnRows.push({ block, prehash })
-        }
-        return returnRows
-    }
+
+
     public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
         await collection.insertOne(block)
