@@ -106,6 +106,7 @@ export class FreeHyconServer {
             const found = foundWorks[0]
             const newPrehash = found.prehash.toString("hex")
             if (newPrehash !== this.ongoingPrehash) {
+                this.stop()
                 this.ongoingPrehash = newPrehash
                 this.putWork(found.block, found.prehash)
                 logger.warn(`Polling PutWork: ${found.prehash.toString("hex").slice(0, 16)}`)
