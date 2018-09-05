@@ -11,7 +11,7 @@ export class RabbitmqServer {
   queueName: string = "hello";
   public constructor(queueName: string) {
     if (MongoServer.isReal) {
-      this.ip = "amqp://172.31.20.102"
+      this.ip = "amqp://freehycon:freehycon@172.31.20.102"
     }
     if (queueName !== undefined) this.queueName = queueName;
     this.initialize();
