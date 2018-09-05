@@ -407,9 +407,9 @@ export class RabbitPeer extends BasePeer implements IPeer {
                 logger.error(`Failed to putTx: ${e}`)
             }
         }
-        if (success) {
-            rebroadcast()
-        }
+        // if (success) {
+        //     rebroadcast()
+        // }
 
         return { putTxReturn: { success } }
     }
@@ -468,9 +468,9 @@ export class RabbitPeer extends BasePeer implements IPeer {
             try {
                 block = new Block(request.blocks[0])
                 await this.consensus.putBlock(block)
-                if (await this.blockBroadcastCondition(block)) {
-                    rebroadcast()
-                }
+                // if (await this.blockBroadcastCondition(block)) {
+                //     rebroadcast()
+                // }
             } catch (e) {
                 logger.debug(e)
             }

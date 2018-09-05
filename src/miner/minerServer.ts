@@ -143,20 +143,11 @@ export class MinerServer {
         globalOptions.cpuMiners = count
     }
     private candidate(previousDBBlock: DBBlock, previousHash: Hash): void {
-        if (globalOptions.minerAddress === undefined || globalOptions.minerAddress === "") {
-            logger.info("Can't mine without miner address")
-            return
-        }
-
-        if (!globalOptions.bootstrap && ((Date.now() - previousDBBlock.header.timeStamp) > 86400000)) {
-            logger.info("Last block is more than a day old, waiting for synchronization prior to mining.")
-            return
-        }
         const miner: Address = new Address(globalOptions.minerAddress)
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
         clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
-        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 10000)
+        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 20000)
     }
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
