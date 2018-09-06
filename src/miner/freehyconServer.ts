@@ -116,6 +116,7 @@ export class FreeHyconServer {
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
+            this.stop(); // stop mining before putWork
             this.putWork(block, prehash)
         });
     }
