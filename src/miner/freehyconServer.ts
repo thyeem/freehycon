@@ -38,7 +38,6 @@ export interface IWorker {
     fee: number
     hashrate: number
     hashshare: number
-    invalid: number
     status: WorkerStatus
     career: number
     inspector: WorkerInspector
@@ -58,25 +57,26 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly freqDayoff = 100
-    private readonly numJobBuffer = 10
-    private readonly alphaIntern = 0.3
-    private readonly meanTimeIntern = 20000
-    private readonly diffcultyIntern = 1. / (200. * 0.001 * this.meanTimeIntern / Math.LN2)
-    private readonly alphaInterview = 0.06
-    private readonly meanTimeInterview = 20000
-    private numInternProblems = 15
-    private numInterviewProblems = 15
+    public static readonly FREQ_DAY_OFF = 100
+    private readonly NUM_JOB_BUFFER = 10
+    private readonly ALPHA_INTERN = 0.3
+    private readonly MEANTIME_INTERN = 20000
+    private readonly DIFFCULTY_INTERN = 1. / (200. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
+    private readonly ALPHA_INTERVIEW = 0.06
+    private readonly MEANTIME_INTERVIEW = 20000
+    private NUM_INTERN_PROBLEMS = 15
+    private NUM_INTERVIEW_PROBLEMS = 15
 
-    private readonly numDayoffProblems = 1
-    private readonly timeoutClearBlacklist = 60000
-    private readonly timeoutReleaseData = 10000
+    private readonly NUM_DAYOFF_PROBLEMS = 1
+    private readonly THRESHOLD_BLACKLIST = 3
+    private readonly INTEVAL_PATROL_BLACKLIST = 300000
+    private readonly INTEVAL_RELEASE_DATA = 10000
     private jobId: number
     private port: number
     private stratum: any
     private mapWorker: Map<string, IWorker>
     private mapJob: Map<number, IJob>
-    private blacklist: Set<string>
+    private blacklist: Map<string, number>
     private dataCenter: DataCenter
     private ongoingPrehash: string
     public mongoServer: MongoServer
@@ -85,8 +85,8 @@ export class FreeHyconServer {
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
         if (!MongoServer.isReal) {
-            this.numInternProblems = 1
-            this.numInterviewProblems = 1
+            this.NUM_INTERN_PROBLEMS = 1
+            this.NUM_INTERVIEW_PROBLEMS = 1
         }
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
@@ -95,14 +95,13 @@ export class FreeHyconServer {
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
-        this.blacklist = new Set<string>()
+        this.blacklist = new Map<string, number>()
         this.jobId = 0
         setTimeout(async () => {
             await this.dataCenter.preload()
             this.init()
             this.releaseData()
-            this.clearBlacklist()
-
+            this.patrolBlacklist()
         }, 2000)
     }
 
@@ -157,28 +156,32 @@ export class FreeHyconServer {
     private init() {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
         this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
-            let worker = this.mapWorker.get(socket.id)
-            if (worker === undefined) { worker = this.welcomeNewWorker(socket) }
+            let worker
             switch (req.method) {
                 case "subscribe":
                     deferred.resolve([socket.id.toString(), "0", "0", 4])
                     break
                 case "authorize":
                     const [address, workerId] = req.params.slice(0, 2)
-                    const remoteIP = worker.socket.socket.remoteAddress
-                    const blacklist = this.blacklist.has(remoteIP)
-                    if (blacklist) {
-                        this.banInvalidUsers(worker)
+                    const remoteIP = socket.socket.remoteAddress
+                    let authorized = false
+                    if (this.isInvalidUser(socket)) {
+                        this.giveWarnings(socket)
                     } else {
-                        logger.warn(`Authorizing worker: ${address}`)
+                        logger.warn(`Authorized worker: ${address}`)
+                        authorized = true
+                        worker = this.mapWorker.get(socket.id)
+                        if (worker === undefined) { worker = this.welcomeNewWorker(socket) }
                         worker.address = checkAddress(address)
                         this.setWorkerId(worker, workerId)
                         this.setWorkerTick(worker)
                         this.putWorkOnInspector(worker)
                     }
-                    deferred.resolve([true])
+                    deferred.resolve([authorized])
                     break
                 case "submit":
+                    worker = this.mapWorker.get(socket.id)
+                    if (worker === undefined) { this.giveWarnings(socket); break }
                     const jobId = Number(req.params.job_id)
                     const isWorking: boolean = worker.status === WorkerStatus.Working
                     const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
@@ -203,9 +206,9 @@ export class FreeHyconServer {
         this.stratum.on("close", async (socketId: any) => {
             const worker = this.mapWorker.get(socketId)
             if (worker !== undefined) {
-                await this.mongoServer.addDisconnections({ address: worker.address, workerId: worker.workerId, timeStamp: Date.now() })
                 this.dataCenter.leaveLegacy(worker)
                 this.mapWorker.delete(socketId)
+                this.mongoServer.addDisconnections({ address: worker.address, workerId: worker.workerId, timeStamp: Date.now() })
                 logger.error(`Worker socket closed: ${worker.address} (${socketId})`)
             }
         })
@@ -220,7 +223,7 @@ export class FreeHyconServer {
             worker.inspector.mapJob.delete(id - worker.inspector.numJobBuffer)
         } else {
             this.jobId = ++id
-            this.mapJob.delete(id - this.numJobBuffer)
+            this.mapJob.delete(id - this.NUM_JOB_BUFFER)
         }
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
         const difficulty = (worker !== undefined) ? worker.inspector.difficulty : block.header.difficulty
@@ -262,7 +265,7 @@ export class FreeHyconServer {
             const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
             if (!nonceCheck) {
                 logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
-                this.banInvalidUsers(worker)
+                this.giveWarnings(worker.socket)
                 return false
             }
             job.solved = true
@@ -314,8 +317,7 @@ export class FreeHyconServer {
             fee: 0.029,
             hashrate: 0,
             hashshare: 0,
-            inspector: new WorkerInspector(this.meanTimeIntern, this.diffcultyIntern, this.alphaIntern),
-            invalid: 0,
+            inspector: new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN),
             socket,
             status: WorkerStatus.Intern,
             tick: undefined,
@@ -325,27 +327,35 @@ export class FreeHyconServer {
         this.mapWorker.set(socket.id, worker)
         return this.mapWorker.get(socket.id)
     }
-    private banInvalidUsers(worker: IWorker) {
-        if (worker.socket === undefined) { return }
-        if (++worker.invalid < 10) { return }
-        const remoteIP = worker.socket.socket.remoteAddress
-        const socketId = worker.socket.id
-        const address = worker.address
+    private banInvalidUsers(socket: any) {
+        if (socket === undefined) { return }
         try {
-            logger.error(`Banned invalid worker: ${address} | remoteIP: ${remoteIP}`)
-            worker.socket.end()
-            worker.socket.unref()
-            worker.socket.destroy()
+            const remoteIP = socket.socket.remoteAddress
+            logger.error(`Banned invalid user of remoteIP: ${remoteIP} | score: ${this.blacklist.get(remoteIP)}`)
+            socket.socket.end()
+            socket.socket.unref()
+            socket.socket.destroy()
         } catch (e) {
             logger.error(`error in destroying socket: ${e}`)
+        } finally {
+            this.mapWorker.delete(socket.id)
         }
-        this.mapWorker.delete(socketId)
-        this.blacklist.add(remoteIP)
+    }
+    private isInvalidUser(socket: any) {
+        const remoteIP = socket.socket.remoteAddress
+        return this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
+    }
+    private giveWarnings(socket: any) {
+        const remoteIP = socket.socket.remoteAddress
+        let score = this.blacklist.get(remoteIP)
+        score = (score !== undefined) ? score + 1 : 1;
+        this.blacklist.set(remoteIP, score)
+        if (this.isInvalidUser(socket)) { this.banInvalidUsers(socket) }
     }
     private checkDayoff(worker: IWorker) {
         if (worker.career > 0x7FFFFFFF) { worker.career = 0 }
         worker.career++
-        if (worker.career % FreeHyconServer.freqDayoff === 0) {
+        if (worker.career % FreeHyconServer.FREQ_DAY_OFF === 0) {
             worker.status = WorkerStatus.Dayoff
             return true
         }
@@ -353,13 +363,13 @@ export class FreeHyconServer {
     }
     private checkWorkingDay(worker: IWorker) {
         const isIntern = worker.status === WorkerStatus.Intern
-        const problems = (worker.career !== 0) ? this.numDayoffProblems : (isIntern) ? this.numInternProblems : this.numInterviewProblems
+        const problems = (worker.career !== 0) ? this.NUM_DAYOFF_PROBLEMS : (isIntern) ? this.NUM_INTERN_PROBLEMS : this.NUM_INTERVIEW_PROBLEMS
         if (worker.inspector.submits >= problems) {
             worker.inspector.submits = 0
             if (isIntern) { // move on next step: onInterview
                 worker.status = WorkerStatus.OnInterview
                 const difficulty = worker.inspector.difficulty
-                worker.inspector = new WorkerInspector(this.meanTimeInterview, difficulty, this.alphaInterview)
+                worker.inspector = new WorkerInspector(this.MEANTIME_INTERVIEW, difficulty, this.ALPHA_INTERVIEW)
             } else {
                 worker.status = WorkerStatus.Working
                 return true
@@ -392,19 +402,24 @@ export class FreeHyconServer {
         }
         worker.tick = worker.tickLogin = Date.now()
     }
+    private async patrolBlacklist() {
+        const list = await this.mongoServer.getBlacklist()
+        for (const item of list) {
+            this.blacklist.set(item.key, item.score)
+        }
+        for (const [key, worker] of this.mapWorker) {
+            if (this.isInvalidUser(worker.socket) || this.isInvalidUser(worker.address)) { this.giveWarnings(worker.socket) }
+        }
+        setTimeout(() => {
+            this.patrolBlacklist()
+        }, this.INTEVAL_PATROL_BLACKLIST)
+    }
     private async releaseData() {
         const workers = Array.from(this.mapWorker.values())
         this.dataCenter.release(workers)
         setTimeout(() => {
             this.releaseData()
-        }, this.timeoutReleaseData)
-    }
-    private async clearBlacklist() {
-        this.blacklist.clear()
-        for (const [key, worker] of this.mapWorker) { worker.invalid = 0 }
-        setTimeout(() => {
-            this.clearBlacklist()
-        }, this.timeoutClearBlacklist)
+        }, this.INTEVAL_RELEASE_DATA)
     }
 }
 
@@ -420,7 +435,7 @@ function checkAddress(address: string) {
     return (!isAddress || isDonation) ? Banker.freeMinerAddr : address
 }
 function getNick(worker: IWorker): string {
-    const round = Math.floor(worker.career / FreeHyconServer.freqDayoff)
+    const round = Math.floor(worker.career / FreeHyconServer.FREQ_DAY_OFF)
     return worker.address.slice(0, 8) + ":" + worker.socket.id.slice(0, 6) + "(" + round + ") | "
 }
 function bufferToHexBE(target: Buffer) {
