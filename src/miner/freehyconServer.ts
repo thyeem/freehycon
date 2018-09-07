@@ -69,6 +69,7 @@ export class FreeHyconServer {
 
     private readonly NUM_DAYOFF_PROBLEMS = 1
     private readonly THRESHOLD_BLACKLIST = 3
+    private readonly THRESHOLD_MIN_HASHRATE = 30
     private readonly INTEVAL_PATROL_BLACKLIST = 300000
     private readonly INTEVAL_RELEASE_DATA = 10000
     private jobId: number
@@ -99,9 +100,9 @@ export class FreeHyconServer {
         this.jobId = 0
         setTimeout(async () => {
             await this.dataCenter.preload()
+            await this.patrolBlacklist()
             this.init()
             this.releaseData()
-            this.patrolBlacklist()
         }, 2000)
     }
 
@@ -165,7 +166,7 @@ export class FreeHyconServer {
                     const [address, workerId] = req.params.slice(0, 2)
                     const remoteIP = socket.socket.remoteAddress
                     let authorized = false
-                    if (this.isInvalidUser(socket)) {
+                    if (this.isInvalidUser(socket, address.trim())) {
                         this.giveWarnings(socket)
                     } else {
                         logger.warn(`Authorized worker: ${address}`)
@@ -295,6 +296,10 @@ export class FreeHyconServer {
         worker.inspector.adjustDifficulty()
         this.measureWorker(worker)
         if (this.checkWorkingDay(worker)) {
+            if (worker.hashrate < this.THRESHOLD_MIN_HASHRATE) {
+                this.giveWarnings(worker.socket, 10)
+                return
+            }
             const resumeJob = this.mapJob.get(this.jobId)
             this.notifyJob(worker.socket, getRandomIndex(), resumeJob)
             return
@@ -341,14 +346,15 @@ export class FreeHyconServer {
             this.mapWorker.delete(socket.id)
         }
     }
-    private isInvalidUser(socket: any) {
+    private isInvalidUser(socket: any, address: string = "") {
         const remoteIP = socket.socket.remoteAddress
-        return this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
+        const byAddress = this.blacklist.get(address) > this.THRESHOLD_BLACKLIST
+        return (this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST) || byAddress
     }
-    private giveWarnings(socket: any) {
+    private giveWarnings(socket: any, increment: number = 1) {
         const remoteIP = socket.socket.remoteAddress
         let score = this.blacklist.get(remoteIP)
-        score = (score !== undefined) ? score + 1 : 1;
+        score = (score !== undefined) ? score + increment : increment;
         this.blacklist.set(remoteIP, score)
         if (this.isInvalidUser(socket)) { this.banInvalidUsers(socket) }
     }
@@ -408,7 +414,7 @@ export class FreeHyconServer {
             this.blacklist.set(item.key, item.score)
         }
         for (const [key, worker] of this.mapWorker) {
-            if (this.isInvalidUser(worker.socket) || this.isInvalidUser(worker.address)) { this.giveWarnings(worker.socket) }
+            if (this.isInvalidUser(worker.socket, worker.address)) { this.giveWarnings(worker.socket) }
         }
         setTimeout(() => {
             this.patrolBlacklist()
