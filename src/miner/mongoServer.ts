@@ -7,7 +7,7 @@ export class MongoServer {
     public static readonly timeoutSubmit = 200
     public static readonly timeoutPayWages = 30000
     public static readonly timeoutUpdateBlockStatus = 1800000
-    public static readonly confirmations = 50
+    public static readonly confirmations = 12
     private url: string = "mongodb://localhost:27017"
 
     private dbName = "freehycon"
