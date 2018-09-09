@@ -59,7 +59,9 @@ export class MinerServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
         this.queueSubmitWork.receive((msg: any) => {
-            logger.info(" [x] Received Submit Block %s", msg.content.toString());
+            if (!MongoServer.isReal) {
+                logger.info(" [x] Received Submit Block %s", msg.content.toString());
+            }
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
