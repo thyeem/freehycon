@@ -93,9 +93,7 @@ export class FreeHyconServer {
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
-
         this.stratum = new LibStratum({ settings: { hostname: "localhost", host: "localhost", port: this.port, toobusy: 200 } })
-
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
@@ -114,8 +112,8 @@ export class FreeHyconServer {
         await this.queuePutWork.initialize();
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
-        this.queuePutWork.receive((msg: any) => {
-            //logger.info(" [x] Received PutWork %s", msg.content.toString());
+        await this.queuePutWork.receive((msg: any) => {
+            logger.info(" [x] Received PutWork %s", msg.content.toString());
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)

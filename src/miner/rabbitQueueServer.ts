@@ -3,7 +3,7 @@ import { getLogger } from "log4js";
 import { MongoServer } from './mongoServer';
 
 const logger = getLogger("RabbitMQ");
-export class RabbitmqServer {
+export class RabbitmqQueueServer {
   conn: Connection = undefined;
   channel: Channel = undefined;
   ip: string = "amqp://localhost";
@@ -20,25 +20,26 @@ export class RabbitmqServer {
     logger.info(`Server ${this.ip}   Queue ${this.queueName}`);
     this.conn = await connect(this.ip);
     this.channel = await this.conn.createChannel();
-    this.channel.assertExchange(this.queueName, 'fanout', { durable: false });
+    this.channel.assertQueue(this.queueName, { durable: false });
   }
 
   public finalize() {
     this.conn.close();
   }
 
-  public async receive(callback: (msg: any) => void) {
-    let tmpQueue = await this.channel.assertQueue('', { exclusive: true })
-    this.channel.bindQueue(tmpQueue.queue, this.queueName, '')
+  public receive(callback: (msg: any) => void) {
     this.channel.consume(
-      tmpQueue.queue,
+      this.queueName,
+      /*(msg: any) => {
+        console.log(" [x] Received %s", msg.content.toString());
+      }*/
       callback,
       { noAck: true }
-    )
+    );
   }
 
   public send(msg: any) {
     if (this.channel !== undefined)
-      this.channel.publish(this.queueName, '', Buffer.from(msg));
+      this.channel.sendToQueue(this.queueName, Buffer.from(msg));
   }
 }
