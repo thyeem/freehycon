@@ -120,6 +120,7 @@
         "stratum": "git://github.com/dev-jbam/node-stratum.git",
         "tsconfig": "^7.0.0",
         "typeorm": "^0.2.7",
+        "uuid": "^3.3.2",
         "wallet.ts": "^0.2.5"
     }
 }

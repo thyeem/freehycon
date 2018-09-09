@@ -3,6 +3,8 @@ import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
 import { IWorker } from "./freehyconServer"
+const uuidv4 = require('uuid/v4');
+
 const logger = getLogger("MongoServer")
 export class MongoServer {
     public static readonly isReal = true
@@ -16,7 +18,11 @@ export class MongoServer {
     private dbName = "freehycon"
     private client: MongoClient
     private db: Db
+
+    public key: string = ""
     constructor() {
+        this.key = uuidv4();
+        logger.info(`MongoDB UniqueID ${this.key}`)
         if (MongoServer.isReal) {
             this.url = "mongodb://172.31.20.102:27017"
         }
@@ -116,6 +122,7 @@ export class MongoServer {
             let newWorkers: any[] = []
             for (let w of mw) {
                 let newone: any = {
+                    key: this.key,
                     socket: w.socket.id,
                     workerId: w.workerId,
                     address: w.address,
@@ -132,6 +139,7 @@ export class MongoServer {
             }
             //           logger.info(`Workers ${JSON.stringify(newWorkers)}`)
             const collection = this.db.collection(`ClusterWorkers`)
+            await collection.remove({ key: this.key })
             await collection.insertMany(newWorkers)
         }
 
