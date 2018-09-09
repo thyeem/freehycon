@@ -93,7 +93,9 @@ export class FreeHyconServer {
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 200 } })
+
+        this.stratum = new LibStratum({ settings: { hostname: "localhost", host: "localhost", port: this.port, toobusy: 200 } })
+
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
