@@ -68,7 +68,7 @@ export class DataCenter {
     public async updateDataSet(workers: IWorker[]) {
         this.mongoServer.updateClusterWorkers(workers)
         let allWorkers = await this.mongoServer.getClusterAllWorkers()
-        logger.info(`All Workers ${JSON.stringify(allWorkers)}`)
+        //logger.info(`All Workers ${JSON.stringify(allWorkers)}`)
         this.reset()
         this.updateWorkers(allWorkers)
         this.updateMiners()
