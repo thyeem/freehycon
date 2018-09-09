@@ -14,7 +14,7 @@ export class RabbitmqQueueServer {
       this.ip = "amqp://freehycon:freehycon@172.31.20.102"
     }
     if (queueName !== undefined) this.queueName = queueName;
-    this.initialize();
+
   }
   public async initialize() {
     logger.info(`Server ${this.ip}   Queue ${this.queueName}`);
