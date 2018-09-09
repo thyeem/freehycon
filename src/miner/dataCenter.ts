@@ -62,11 +62,15 @@ export class DataCenter {
         const workers = await this.mongoServer.loadWorkers()
         this.reset()
         this.loadWorkers(workers)
+
+        this.mongoServer.removeClusterAllWorkers()
     }
-    public updateDataSet(workers: IWorker[]) {
+    public async updateDataSet(workers: IWorker[]) {
         this.mongoServer.updateClusterWorkers(workers)
+        let allWorkers = await this.mongoServer.getClusterAllWorkers()
+        logger.info(`All Workers ${JSON.stringify(allWorkers)}`)
         this.reset()
-        this.updateWorkers(workers)
+        this.updateWorkers(allWorkers)
         this.updateMiners()
         this.updateRewardBase()
     }
@@ -154,9 +158,9 @@ export class DataCenter {
             this.rewardBase.set(address, { fee, reward })
         }
     }
-    public release(workers: IWorker[]) {
+    public async release(workers: IWorker[]) {
         const workerCount = workers.length
-        this.updateDataSet(workers)
+        await this.updateDataSet(workers)
         const poolSummary = this.getPoolSummary(workerCount)
         const poolMiners = this.getPoolMiners()
         const poolWorkers = this.getPoolWorkers()

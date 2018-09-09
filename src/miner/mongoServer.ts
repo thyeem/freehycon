@@ -112,9 +112,15 @@ export class MongoServer {
         await collection.insertOne(disconnInfo)
     }
 
-    public async removeClusterWorkers() {
+    public async removeClusterAllWorkers() {
         const collection = this.db.collection(`ClusterWorkers`)
-        await collection.remove({})
+        await collection.remove({ })
+    }
+
+    public async getClusterAllWorkers(): Promise<any[]> {
+        const collection = this.db.collection(`ClusterWorkers`)
+        const rows = await collection.find({}).toArray()
+        return rows
     }
     public async updateClusterWorkers(mw: IWorker[]) {
         if (this.db === undefined) { return }

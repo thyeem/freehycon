@@ -114,7 +114,7 @@ export class FreeHyconServer {
         await this.queueSubmitWork.initialize();
         await this.queuePutWork.receive((msg: any) => {
             if (MongoServer.debugRabbit) {
-              logger.info(" [x] Received PutWork %s", msg.content.toString());
+                logger.info(" [x] Received PutWork %s", msg.content.toString());
             }
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
@@ -295,7 +295,7 @@ export class FreeHyconServer {
                 this.queueSubmitWork.send(JSON.stringify(submitData))
 
                 this.stop()
-                const rewardBase = this.newRound()
+                const rewardBase = await this.newRound()
                 const blockHash = new Hash(minedBlock.header)
                 this.mongoServer.payWages({ blockHash: blockHash.toString(), rewardBase })
             }
@@ -407,9 +407,9 @@ export class FreeHyconServer {
         }
         return false
     }
-    private newRound() {
+    private async newRound() {
         const workers = Array.from(this.mapWorker.values())
-        this.dataCenter.updateDataSet(workers)
+        await this.dataCenter.updateDataSet(workers)
         const rewardBase = new Map(this.dataCenter.rewardBase)
         this.dataCenter.workers.clear()
         this.dataCenter.rewardBase.clear()
@@ -446,7 +446,7 @@ export class FreeHyconServer {
     }
     private async releaseData() {
         const workers = Array.from(this.mapWorker.values())
-        this.dataCenter.release(workers)
+        await this.dataCenter.release(workers)
         setTimeout(() => {
             this.releaseData()
         }, this.INTEVAL_RELEASE_DATA)
