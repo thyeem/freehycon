@@ -1,8 +1,13 @@
+import { getLogger } from "log4js"
 import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
+import { IWorker } from "./freehyconServer"
+const logger = getLogger("MongoServer")
 export class MongoServer {
     public static readonly isReal = true
+    public static readonly debugRabbit = false
+
     public static readonly timeoutPayWages = 30000
     public static readonly timeoutUpdateBlockStatus = 1800000
     public static readonly confirmations = 12
@@ -101,9 +106,34 @@ export class MongoServer {
         await collection.insertOne(disconnInfo)
     }
 
-    public async updateClusterWorkers(workers: any[]) {
+    public async removeClusterWorkers() {
         const collection = this.db.collection(`ClusterWorkers`)
-        await collection.insertMany(workers)
+        await collection.remove({})
+    }
+    public async updateClusterWorkers(mw: IWorker[]) {
+        if (this.db === undefined) { return }
+        if (mw.length > 0) {
+            let newWorkers: any[] = []
+            for (let w of mw) {
+                let newone: any = {
+                    socket: w.socket.id,
+                    workerId: w.workerId,
+                    address: w.address,
+                    fee: w.fee,
+                    hashrate: w.hashrate,
+                    hashshare: w.hashshare,
+                    status: w.status,
+                    career: w.career,
+                    tick: w.tick,
+                    tickLogin: w.tickLogin
+                }
+                newWorkers.push(newone)
+
+            }
+            //           logger.info(`Workers ${JSON.stringify(newWorkers)}`)
+            const collection = this.db.collection(`ClusterWorkers`)
+            await collection.insertMany(newWorkers)
+        }
 
     }
 }
