@@ -64,6 +64,7 @@ export class DataCenter {
         this.loadWorkers(workers)
     }
     public updateDataSet(workers: IWorker[]) {
+        this.mongoServer.updateClusterWorkers(workers)
         this.reset()
         this.updateWorkers(workers)
         this.updateMiners()

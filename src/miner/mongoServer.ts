@@ -100,4 +100,10 @@ export class MongoServer {
         const collection = this.db.collection(`Disconnections`)
         await collection.insertOne(disconnInfo)
     }
+
+    public async updateClusterWorkers(workers: any[]) {
+        const collection = this.db.collection(`ClusterWorkers`)
+        await collection.insertMany(workers)
+
+    }
 }
