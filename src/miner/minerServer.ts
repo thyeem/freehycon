@@ -59,7 +59,7 @@ export class MinerServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
         this.queueSubmitWork.receive((msg: any) => {
-            if (!MongoServer.isReal) {
+            if (MongoServer.debugRabbit) {
                 logger.info(" [x] Received Submit Block %s", msg.content.toString());
             }
             let one = JSON.parse(msg.content.toString())

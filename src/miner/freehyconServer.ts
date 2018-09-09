@@ -113,8 +113,8 @@ export class FreeHyconServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork");
         await this.queueSubmitWork.initialize();
         await this.queuePutWork.receive((msg: any) => {
-            if (!MongoServer.isReal) {
-            logger.info(" [x] Received PutWork %s", msg.content.toString());
+            if (MongoServer.debugRabbit) {
+              logger.info(" [x] Received PutWork %s", msg.content.toString());
             }
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
