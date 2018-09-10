@@ -62,7 +62,7 @@ export class FreeHyconServer {
     private readonly ALPHA_INTERN = 0.3
     private readonly MEANTIME_INTERN = 20000
     private readonly DIFFCULTY_INTERN = 1. / (200. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
-    private readonly ALPHA_INTERVIEW = 0.06
+    private readonly ALPHA_INTERVIEW = 0.1
     private readonly MEANTIME_INTERVIEW = 20000
     private NUM_INTERN_PROBLEMS = 15
     private NUM_INTERVIEW_PROBLEMS = 15
@@ -92,7 +92,7 @@ export class FreeHyconServer {
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 2000 } })
+        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 30 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
