@@ -203,7 +203,10 @@ export class FreeHyconServer {
                     deferred.reject(LibStratum.errors.METHOD_NOT_FOUND)
             }
         })
-        this.stratum.on("mining.error", (error: any, socket: any) => { logger.error("Mining error: ", error) })
+        this.stratum.on("mining.error", (error: any, socket: any) => {
+            this.giveWarnings(socket)
+            logger.error("Mining error: ", error)
+        })
         this.stratum.on("close", async (socketId: any) => {
             const worker = this.mapWorker.get(socketId)
             if (worker !== undefined) {
