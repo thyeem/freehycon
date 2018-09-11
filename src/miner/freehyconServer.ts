@@ -68,7 +68,7 @@ export class FreeHyconServer {
     private NUM_INTERVIEW_PROBLEMS = 20
 
     private readonly NUM_DAYOFF_PROBLEMS = 1
-    private readonly THRESHOLD_BLACKLIST = 3
+    private readonly THRESHOLD_BLACKLIST = 15
     private readonly THRESHOLD_MIN_HASHRATE = 30
     private readonly INTEVAL_PATROL_BLACKLIST = 300000
     private readonly INTEVAL_RELEASE_DATA = 10000
@@ -257,7 +257,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-            )
+        )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
@@ -300,7 +300,7 @@ export class FreeHyconServer {
         this.measureWorker(worker)
         if (this.checkWorkingDay(worker)) {
             if (worker.hashrate < this.THRESHOLD_MIN_HASHRATE) {
-                this.giveWarnings(worker.socket, 10)
+                this.giveWarnings(worker.socket, 100)
                 return
             }
             const resumeJob = this.mapJob.get(this.jobId)
