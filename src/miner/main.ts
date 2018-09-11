@@ -28,9 +28,9 @@ function main() {
     if (cluster.isMaster) {
         console.log(`Master created`)
         runFreehycon(true)
-        //os.cpus().forEach(() => {
-        cluster.fork()
-        //})
+        os.cpus().forEach(() => {
+            cluster.fork()
+        })
     }
     else {
         console.log(`Worker Created ${cluster.worker.id}`)

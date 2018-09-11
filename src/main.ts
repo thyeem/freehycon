@@ -182,7 +182,7 @@ async function main() {
     }
 
     if (globalOptions.freehycon !== undefined) {
-        runFreehycon()
+        // runFreehycon()
         return
     }
     if (globalOptions.lite === undefined || globalOptions.lite) {
