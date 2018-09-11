@@ -356,8 +356,8 @@ export class FreeHyconServer {
         const worker = this.mapWorker.get(socket.id)
         const byAddress = this.blacklist.get(address) > this.THRESHOLD_BLACKLIST
         const byScore = this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
-        const byWorker = worker.invalid > this.THRESHOLD_BLACKLIST
         if (worker !== undefined) {
+            const byWorker = worker.invalid > this.THRESHOLD_BLACKLIST
             return byWorker || byScore || byAddress
         } else {
             return byAddress || byScore
