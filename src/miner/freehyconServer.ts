@@ -117,7 +117,7 @@ export class FreeHyconServer {
             let one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
-            this.stop(); // stop mining before putWork
+            this.stop() // stop mining before putWork
             this.putWork(block, prehash)
         });
     }
@@ -182,23 +182,29 @@ export class FreeHyconServer {
                     deferred.resolve([authorized])
                     break
                 case "submit":
+                    let verified = false
                     worker = this.mapWorker.get(socket.id)
-                    if (worker === undefined) { this.giveWarnings(socket); break }
-                    const jobId = Number(req.params.job_id)
-                    const isWorking: boolean = worker.status === WorkerStatus.Working
-                    const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
-                    const nick = (isWorking) ? "" : getNick(worker)
-                    if (job === undefined || job.solved === true) { break }
-                    logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
-                    let result = false
-                    if (isWorking) {
-                        result = await this.completeWork(jobId, req.params.nonce)
-                    } else { // worker.status === ( Intern or Oninterview or Dayoff )
-                        worker.inspector.jobTimer.end = Date.now()
-                        result = await this.completeWork(jobId, req.params.nonce, worker)
-                        if (result) { this.keepWorkingTest(worker) }
+                    if (worker === undefined) {
+                        this.giveWarnings(socket)
+                    } else {
+                        const jobId = Number(req.params.job_id)
+                        const isWorking: boolean = worker.status === WorkerStatus.Working
+                        const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
+                        const nick = (isWorking) ? "" : getNick(worker)
+                        if (job === undefined || job.solved === true) {
+                            deferred.resolve([verified])
+                            break
+                        }
+                        logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
+                        if (isWorking) {
+                            verified = await this.completeWork(jobId, req.params.nonce)
+                        } else { // worker.status === ( Intern or Oninterview or Dayoff )
+                            worker.inspector.jobTimer.end = Date.now()
+                            verified = await this.completeWork(jobId, req.params.nonce, worker)
+                            if (verified) { this.keepWorkingTest(worker) }
+                        }
                     }
-                    deferred.resolve([result])
+                    deferred.resolve([verified])
                     break
                 default:
                     deferred.reject(LibStratum.errors.METHOD_NOT_FOUND)

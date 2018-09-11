@@ -3,8 +3,6 @@ import { Block } from "../common/block"
 import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
 export class MongoServer {
     public static readonly isReal = true
-    public static readonly timeoutPutWork = 200
-    public static readonly timeoutSubmit = 200
     public static readonly timeoutPayWages = 30000
     public static readonly timeoutUpdateBlockStatus = 1800000
     public static readonly confirmations = 12
