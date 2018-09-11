@@ -49,6 +49,7 @@ const optionDefinitions = [
     { name: "wallet", alias: "W", type: Boolean },
     { name: "writing", alias: "w", type: Boolean },
     { name: "freehycon", alias: "F", type: Boolean },
+    { name: "banker", alias: "b", type: Boolean },
 ]
 
 import conf = require("./settings")
