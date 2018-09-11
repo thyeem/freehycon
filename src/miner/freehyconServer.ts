@@ -41,6 +41,7 @@ export interface IWorker {
     status: WorkerStatus
     career: number
     inspector: WorkerInspector
+    invalid: number
     tick: number
     tickLogin: number
 }
@@ -68,7 +69,7 @@ export class FreeHyconServer {
     private NUM_INTERVIEW_PROBLEMS = 20
 
     private readonly NUM_DAYOFF_PROBLEMS = 1
-    private readonly THRESHOLD_BLACKLIST = 15
+    private readonly THRESHOLD_BLACKLIST = 10
     private readonly THRESHOLD_MIN_HASHRATE = 30
     private readonly INTEVAL_PATROL_BLACKLIST = 300000
     private readonly INTEVAL_RELEASE_DATA = 10000
@@ -92,7 +93,7 @@ export class FreeHyconServer {
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
-        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 30 } })
+        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 200 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
@@ -169,8 +170,8 @@ export class FreeHyconServer {
                     if (this.isInvalidUser(socket, address.trim())) {
                         this.giveWarnings(socket)
                     } else {
-                        logger.warn(`Authorized worker: ${address}`)
                         authorized = true
+                        logger.warn(`Authorized worker: ${address} | IP address: ${remoteIP}`)
                         worker = this.mapWorker.get(socket.id)
                         if (worker === undefined) { worker = this.welcomeNewWorker(socket) }
                         worker.address = checkAddress(address)
@@ -328,6 +329,7 @@ export class FreeHyconServer {
             inspector: new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN),
             socket,
             status: WorkerStatus.Intern,
+            invalid: 0,
             tick: undefined,
             tickLogin: undefined,
             workerId: undefined,
@@ -351,17 +353,26 @@ export class FreeHyconServer {
     }
     private isInvalidUser(socket: any, address: string = "") {
         const remoteIP = socket.socket.remoteAddress
+        const worker = this.mapWorker.get(socket.id)
         const byAddress = this.blacklist.get(address) > this.THRESHOLD_BLACKLIST
-        return (this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST) || byAddress
+        const byScore = this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
+        const byWorker = worker.invalid > this.THRESHOLD_BLACKLIST
+        if (worker !== undefined) {
+            return byWorker || byScore || byAddress
+        } else {
+            return byAddress || byScore
+        }
     }
     private giveWarnings(socket: any, increment: number = 1) {
-        // temporarily de-activated
-        return
         const remoteIP = socket.socket.remoteAddress
-        let score = this.blacklist.get(remoteIP)
-        score = (score !== undefined) ? score + increment : increment;
-        this.blacklist.set(remoteIP, score)
-        if (this.isInvalidUser(socket)) { this.banInvalidUsers(socket) }
+        const score = this.blacklist.get(remoteIP)
+        const worker = this.mapWorker.get(socket.id)
+        if (worker !== undefined) {
+            worker.invalid++
+            if (this.isInvalidUser(worker.socket)) { this.banInvalidUsers(worker.socket) }
+        } else {
+            if (this.isInvalidUser(socket)) { this.banInvalidUsers(socket) }
+        }
     }
     private checkDayoff(worker: IWorker) {
         if (worker.career > 0x7FFFFFFF) { worker.career = 0 }
