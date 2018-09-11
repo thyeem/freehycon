@@ -68,7 +68,13 @@ export class MongoServer {
     }
     public async payWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
-        info.insertOne({
+        const rows = await info.find({ blockHash: wageInfo.blockHash }).limit(1).toArray()
+        //logger.info(`blockHash=${wageInfo.blockHash}  rows=${JSON.stringify(rows)} length=${rows.length}`)
+        // if already found, just exit
+        if (rows.length > 0)
+            return
+
+        await info.insertOne({
             blockHash: wageInfo.blockHash,
             rewardBase: wageInfo.rewardBase,
         })
@@ -114,7 +120,7 @@ export class MongoServer {
 
     public async removeClusterAllWorkers() {
         const collection = this.db.collection(`ClusterWorkers`)
-        await collection.remove({ })
+        await collection.remove({})
     }
 
     public async getClusterAllWorkers(): Promise<any[]> {
