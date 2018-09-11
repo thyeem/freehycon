@@ -257,7 +257,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-        )
+            )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
@@ -355,6 +355,8 @@ export class FreeHyconServer {
         return (this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST) || byAddress
     }
     private giveWarnings(socket: any, increment: number = 1) {
+        // temporarily de-activated
+        return
         const remoteIP = socket.socket.remoteAddress
         let score = this.blacklist.get(remoteIP)
         score = (score !== undefined) ? score + increment : increment;
