@@ -61,7 +61,8 @@ export class MongoServer {
     public async loadWorkers() {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`ClusterWorkers`)
+        // should read Workers , otherwise loading breaks
+        const collection = this.db.collection(`Workers`)
         const rows = await collection.find().toArray()
         for (const one of rows) { returnRows.push(one) }
         return returnRows
