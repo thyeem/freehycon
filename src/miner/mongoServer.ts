@@ -159,14 +159,17 @@ export class MongoServer {
     }
 
 
-    public async getDataCenter(): Promise<any[]> {
+    public async getDataCenter(key: string): Promise<any> {
         const collection = this.db.collection(`DataCenter`)
-        const rows = await collection.find({}).limit(1).toArray()
-        return rows
+        const found = await collection.findOne({ key: key })
+        if (found) 
+        return found.value
+        else
+        return null
     }
-    public async putDataCenter(info: any) {
+    public async putDataCenter(key: string, value: any) {
         const collection = this.db.collection(`DataCenter`)
-        await collection.remove({})
-        await collection.insertOne(info)
+        await collection.update({ key: "time" }, { key: "time", value: value }, { upsert: true })
+
     }
 }
