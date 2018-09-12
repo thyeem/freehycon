@@ -61,7 +61,7 @@ export class MongoServer {
     public async loadWorkers() {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`Workers`)
+        const collection = this.db.collection(`ClusterWorkers`)
         const rows = await collection.find().toArray()
         for (const one of rows) { returnRows.push(one) }
         return returnRows
