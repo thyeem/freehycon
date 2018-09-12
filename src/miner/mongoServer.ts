@@ -156,4 +156,16 @@ export class MongoServer {
         }
 
     }
+
+
+    public async getDataCenter(): Promise<any[]> {
+        const collection = this.db.collection(`DataCenter`)
+        const rows = await collection.find({}).limit(1).toArray()
+        return rows
+    }
+    public async putDataCenter(info: any) {
+        const collection = this.db.collection(`DataCenter`)
+        await collection.remove({})
+        await collection.insertOne(info)
+    }
 }

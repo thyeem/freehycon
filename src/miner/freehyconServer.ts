@@ -446,7 +446,29 @@ export class FreeHyconServer {
     }
     private async releaseData() {
         const workers = Array.from(this.mapWorker.values())
-        await this.dataCenter.release(workers)
+        let infos = await this.mongoServer.getDataCenter()
+        let put = false
+        if (infos.length > 0) {
+            let info = infos[0]
+            let now = new Date()
+            let diff = now.getTime() - info.time // milli seconds
+
+            if (diff > 8000) {
+                put = true
+                //logger.info(`OK TimeDiff=${diff} Now=${now} Old=${info.time}`)
+            }
+            else {
+                // logger.info(`Skip TimeDiff=${diff} Now=${now} Old=${info.time}`)
+            }
+
+        }
+        else {
+            put = true
+        }
+        if (put) {
+            this.mongoServer.putDataCenter({ time: new Date(), workers: workers.length })
+            await this.dataCenter.release(workers)
+        }
         setTimeout(() => {
             this.releaseData()
         }, this.INTEVAL_RELEASE_DATA)
