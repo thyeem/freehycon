@@ -31,12 +31,17 @@ export class MongoServer {
     public async init() {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
+
+        //create index
+        const collection = this.db.collection(`MinedBlocks`)
+        collection.createIndex({ "height": 1 }, { unique: true })
     }
 
 
     public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
-        await collection.update({ height: block.height }, { mainchain: block.mainchain, height: block.height, timestamp: block.timestamp, hash: block.hash, prevHash: block.prevHash }, { upsert: true })
+        await collection.insertOne(block)
+        //await collection.update({ height: block.height }, { _id: block.hash, mainchain: block.mainchain, height: block.height, timestamp: block.timestamp, hash: block.hash, prevHash: block.prevHash }, { upsert: true })
     }
     public async addSummary(summary: IPoolSumary) {
         const collection = this.db.collection(`PoolSummary`)
