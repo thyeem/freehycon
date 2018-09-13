@@ -47,8 +47,7 @@ export class MinerServer {
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(() => {
-
-            this.runPollingPayWages()
+            if (globalOptions.banker) { this.runPollingPayWages() }
             this.runPollingUpdateLastBlock()
         }, 5000)
     }
@@ -119,7 +118,6 @@ export class MinerServer {
         this.mongoServer.addMinedBlock(newBlock)
     }
     public async pollingPayWages() {
-        if (!globalOptions.banker) { return }
         const pays = await this.mongoServer.pollingPayWages()
         if (pays.length > 0) {
             for (const pay of pays) {
@@ -178,8 +176,10 @@ export class MinerServer {
             }),
             txs: validTxs,
         })
-        const prehash = block.header.preHash()
-        const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
-        if (!globalOptions.banker) { this.queuePutWork.send(JSON.stringify(putWorkData)) }
+        if (!globalOptions.banker) {
+            const prehash = block.header.preHash()
+            const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
+            this.queuePutWork.send(JSON.stringify(putWorkData))
+        }
     }
 }
