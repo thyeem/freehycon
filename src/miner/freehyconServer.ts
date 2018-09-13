@@ -131,12 +131,12 @@ export class FreeHyconServer {
             for (const [key, worker] of this.mapWorker) {
                 if (worker.socket === undefined) { continue }
                 if (worker.status === WorkerStatus.Working) {
-                    if (this.checkDayoff(worker)) {
-                        this.putWorkOnInspector(worker)
-                    } else {
-                        this.measureWorker(worker)
-                        this.notifyJob(worker.socket, ++index, newJob)
-                    }
+                    // if (this.checkDayoff(worker)) {
+                    // this.putWorkOnInspector(worker)
+                    // } else {
+                    this.measureWorker(worker)
+                    this.notifyJob(worker.socket, ++index, newJob)
+                    // }
                     continue
                 } else { // worker.status === ( Intern or OnInterview or Dayoff )
                     this.putWorkOnInspector(worker)
@@ -266,7 +266,7 @@ export class FreeHyconServer {
             }, () => {
                 logger.error(`${nick}Put job failed: ${socket.id}`)
             },
-            )
+        )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
