@@ -93,7 +93,7 @@ export class FreeHyconServer {
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
-        this.stratum = new LibStratum({ settings: { hostname: "localhost", host: "localhost", port: this.port, toobusy: 200 } })
+        this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 200 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.dataCenter = new DataCenter(this.mongoServer)
@@ -448,7 +448,7 @@ export class FreeHyconServer {
         const workers = Array.from(this.mapWorker.values())
         let lastTime = await this.mongoServer.getDataCenter("time")
         let put = false
-        if (lastTime!==null) {
+        if (lastTime !== null) {
             let now = new Date()
             let diff = now.getTime() - lastTime // milli seconds
 
@@ -458,7 +458,7 @@ export class FreeHyconServer {
                 logger.info(`OK TimeDiff=${diff} Now=${now} Old=${lastTime}`)
             }
             else {
-                 logger.info(`Skip TimeDiff=${diff} Now=${now} Old=${lastTime}`)
+                logger.info(`Skip TimeDiff=${diff} Now=${now} Old=${lastTime}`)
             }
 
         }
@@ -467,7 +467,7 @@ export class FreeHyconServer {
         }
         if (put) {
             // mark the field first
-            await this.mongoServer.putDataCenter("time",new Date())
+            await this.mongoServer.putDataCenter("time", new Date())
             await this.dataCenter.release(workers)
         }
         setTimeout(() => {
