@@ -66,7 +66,7 @@ export class DataCenter {
         this.mongoServer.removeClusterAllWorkers()
     }
     public async updateDataSet(workers: IWorker[]) {
-        this.mongoServer.updateClusterWorkers(workers)
+        await this.mongoServer.updateClusterWorkers(workers)
         let allWorkers = await this.mongoServer.getClusterAllWorkers()
         //logger.info(`All Workers ${JSON.stringify(allWorkers)}`)
         this.reset()
