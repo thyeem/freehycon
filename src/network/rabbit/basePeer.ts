@@ -11,7 +11,7 @@ interface ReplyAndPacket { reply: proto.Network, packet: Buffer }
 type replyResolve = (reply: ReplyAndPacket) => void
 type replyReject = (reason?: any) => void
 export abstract class BasePeer {
-    public static DefaultTimeoutTime = 3000
+    public static DefaultTimeoutTime = 4000
     public socketBuffer: SocketParser
     private replyId: number
     private replyMap: Map<number, { resolved: replyResolve, reject: replyReject, timeout: NodeJS.Timer }>
@@ -111,7 +111,7 @@ export abstract class BasePeer {
                 case "getBlockTxs":
                 case "getHeadersByRange":
                 case "getBlocksByRange":
-                    return 6000
+                    return 8000
                 default:
                     return BasePeer.DefaultTimeoutTime
             }
