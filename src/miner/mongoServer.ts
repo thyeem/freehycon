@@ -36,7 +36,7 @@ export class MongoServer {
 
     public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
-        await collection.insertOne(block)
+        await collection.update({ height: block.height }, { mainchain: block.mainchain, height: block.height, timestamp: block.timestamp, hash: block.hash, prevHash: block.prevHash }, { upsert: true })
     }
     public async addSummary(summary: IPoolSumary) {
         const collection = this.db.collection(`PoolSummary`)
@@ -162,10 +162,10 @@ export class MongoServer {
     public async getDataCenter(key: string): Promise<any> {
         const collection = this.db.collection(`DataCenter`)
         const found = await collection.findOne({ key: key })
-        if (found) 
-        return found.value
+        if (found)
+            return found.value
         else
-        return null
+            return null
     }
     public async putDataCenter(key: string, value: any) {
         const collection = this.db.collection(`DataCenter`)
