@@ -315,10 +315,7 @@ export class Consensus extends EventEmitter implements IConsensus {
             }
 
             if (status < BlockStatus.Block) {
-                logger.warn(`Received Header`
-                    + ` ${hash}(${dbBlock.height}, ${dbBlock.totalWork.toExponential()}),`
-                    + ` BTip(${this.blockTip.height}, ${this.blockTip.totalWork.toExponential()}),`
-                    + ` HTip(${this.headerTip.height}, ${this.headerTip.totalWork.toExponential()})`)
+                logger.warn(`Received Header` + ` ${hash},` + ` BTip(${this.blockTip.height}),` + ` HTip(${this.headerTip.height})`)
                 return { oldStatus, status, height: dbBlock.height }
             }
 
@@ -328,10 +325,7 @@ export class Consensus extends EventEmitter implements IConsensus {
                 this.emit("candidate", this.blockTip, hash)
             }
 
-            logger.fatal(`Received Block`
-                + ` ${hash}(${dbBlock.height}, ${dbBlock.totalWork.toExponential()}),`
-                + ` BTip(${this.blockTip.height}, ${this.blockTip.totalWork.toExponential()}),`
-                + ` HTip(${this.headerTip.height}, ${this.headerTip.totalWork.toExponential()})`)
+            logger.fatal(`Received Block` + ` ${hash},` + ` BTip(${this.blockTip.height}),` + ` HTip(${this.headerTip.height})`)
 
             return { oldStatus, status, height: dbBlock.height }
         })

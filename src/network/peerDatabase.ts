@@ -17,7 +17,6 @@ export class PeerDatabase implements IPeerDatabase {
         }
         return key
     }
-
     public static model2ipeer(peerModel: PeerModel): proto.IPeer {
         const peer: proto.IPeer = {
             active: peerModel.active,
@@ -31,7 +30,6 @@ export class PeerDatabase implements IPeerDatabase {
         }
         return peer
     }
-
     private connection: Connection
     private maxPeerCount: number = 200
     private network: INetwork
@@ -42,7 +40,6 @@ export class PeerDatabase implements IPeerDatabase {
         this.path = path
         this.dbLock = new AsyncLock(1)
     }
-
     public async init() {
         try {
             this.connection = await createConnection({
@@ -55,10 +52,8 @@ export class PeerDatabase implements IPeerDatabase {
             await this.reset()
         } catch (e) {
             logger.debug(`DB init error: ${e}`)
-            throw e
         }
     }
-
     public async seen(peer: proto.IPeer): Promise<proto.IPeer> {
         try {
             if (peer.port > 10000) {
@@ -89,10 +84,8 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`seen peer error: ${e}`)
-            throw e
         }
     }
-
     public async fail(peer: proto.IPeer): Promise<proto.IPeer> {
         try {
             if (peer.port > 10000) {
@@ -121,10 +114,8 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`fail peer error: ${e}`)
-            throw e
         }
     }
-
     public async deactivate(key: number) {
         try {
             return this.dbLock.critical(async () => {
@@ -137,83 +128,28 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`deactivate peer error: ${e}`)
-            throw e
         }
     }
-
     public async putPeers(peers: proto.IPeer[]) {
         try {
             const tp = peers.splice(0, this.maxPeerCount)
             await this.doPutPeers(tp)
         } catch (e) {
             logger.debug(`put peers error: ${e}`)
-            throw e
         }
     }
-
     public async getRandomPeer(): Promise<proto.IPeer> {
         try {
-            let sql: string
-            let wSuccess: number
-            let wFail: number
-            let wLastSeen: number
-            let params: number[] = []
-            let size = 0
-            if (this.network) {
-                size = this.network.getConnectionCount()
-            }
-            if (size < 20) {
-                wLastSeen = 0.5
-                wSuccess = 2
-                wFail = 10
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY ABS(RANDOM()%100+1) *
-                CASE WHEN
-                    (?*successCount - ?*failCount + ?*(
-                        CASE
-                            WHEN (lastSeen = 0) THEN 0
-                            WHEN (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60 > 100 THEN 0
-                            ELSE 100 - (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60
-                        END
-                    )) = 0 THEN 1
-                ELSE
-                    (?*successCount - ?*failCount + ?*(
-                        CASE
-                            WHEN (lastSeen = 0) THEN 0
-                            WHEN (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60 > 100 THEN 0
-                            ELSE 100 - (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60
-                        END
-                    ))
-                END
-                DESC LIMIT 1`
-                params = [wSuccess, wFail, wLastSeen, wSuccess, wFail, wLastSeen]
-            }
-            if (size >= 20 && size < 40) {
-                wSuccess = 2
-                wFail = 10
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY ABS(RANDOM()%100+1) *
-                CASE WHEN
-                    (?*successCount - ?*failCount) = 0 THEN 1
-                ELSE
-                    (?*successCount - ?*failCount)
-                END
-                DESC LIMIT 1`
-                params = [wSuccess, wFail, wSuccess, wFail]
-            }
-            if (size >= 40) {
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
-            }
+            let sql: string = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
             return this.dbLock.critical(async () => {
-                const rows = await this.connection.manager.query(sql, params)
+                const rows = await this.connection.manager.query(sql)
                 const res = PeerDatabase.model2ipeer(rows[0])
-                logger.debug(`peer pick: ${res.host}~${res.port}~${res.successCount}~${res.lastSeen}~${res.failCount}~${res.lastAttempt}~${res.active}`)
                 return res
             })
         } catch (e) {
             logger.debug(`get random peer error: ${e}`)
-            throw e
         }
     }
-
     public async get(key: number): Promise<proto.IPeer> {
         try {
             return this.dbLock.critical(async () => {
@@ -227,10 +163,8 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`get peer key error: ${e}`)
-            throw e
         }
     }
-
     public async getKeys(): Promise<number[]> {
         try {
             return this.dbLock.critical(async () => {
@@ -248,10 +182,8 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`get keys error: ${e}`)
-            throw e
         }
     }
-
     public async removeAll(): Promise<void> {
         try {
             return this.dbLock.critical(async () => {
@@ -279,10 +211,8 @@ export class PeerDatabase implements IPeerDatabase {
                 })
             })
         } catch (e) {
-            throw e
         }
     }
-
     private async reset() {
         try {
             const keys = await this.getKeys()
@@ -297,7 +227,6 @@ export class PeerDatabase implements IPeerDatabase {
             })
         } catch (e) {
             logger.debug(`reset error: ${e}`)
-            throw e
         }
     }
 }
