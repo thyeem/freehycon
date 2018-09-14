@@ -65,13 +65,9 @@ export class RabbitPeer extends BasePeer implements IPeer {
                     throw new Error(`Already connected to peer`)
                 }
             }
-
             this.listenPort = status.port
             this.guid = status.guid
             this.version = status.version
-            if (status.version > this.network.version) {
-                logger.warn(`Peer is using a higher version number(${status.version}) than current version(${this.network.version})`)
-            }
             return status
         } catch (e) {
             logger.debug(`Disconnecting from ${this.socketBuffer.getIp()}:${this.socketBuffer.getPort()}: ${e}`)

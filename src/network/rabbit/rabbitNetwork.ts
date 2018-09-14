@@ -252,8 +252,8 @@ export class RabbitNetwork implements INetwork {
             const peerPromise = new Promise<RabbitPeer>(async (resolve, reject) => {
                 logger.debug(`Attempting to connect to ${host}:${port}...`)
                 const socket = new net.Socket()
-                socket.once("error", () => reject(`Failed to connect to ${key}: ${host}:${port}`))
-                socket.once("timeout", () => reject(`Timeout to connect to ${key}: ${host}:${port}`))
+                socket.once("error", () => reject(`Failed to connect to ${host}:${port}`))
+                socket.once("timeout", () => reject(`Timeout to connect to ${host}:${port}`))
                 socket.connect({ host, port }, async () => {
                     try {
                         const newPeer = await this.newConnection(socket, save)
@@ -283,13 +283,12 @@ export class RabbitNetwork implements INetwork {
     private async accept(socket: net.Socket): Promise<void> {
         try {
             socket.once("error", (e) => logger.debug(`Accept socket error: ${e}`))
-            logger.debug(`Detect a incoming peer ${RabbitNetwork.ipNormalise(socket.remoteAddress)}:${socket.remotePort}`)
+            logger.fatal(`Incoming peer connection ${RabbitNetwork.ipNormalise(socket.remoteAddress)}:${socket.remotePort}`)
             const peer = await this.newConnection(socket)
         } catch (e) {
             logger.debug(e)
         }
     }
-
     private async newConnection(socket: net.Socket, save: boolean = true): Promise<RabbitPeer> {
         try {
             const peer = new RabbitPeer(socket, this, this.consensus, this.txPool, this.peerDatabase)
@@ -303,7 +302,7 @@ export class RabbitNetwork implements INetwork {
                     socket.end()
                     this.peers.delete(key)
                     this.peerDatabase.deactivate(key)
-                    logger.debug(`error in connection to ${key} ${ipeer.host}:${ipeer.port}`)
+                    logger.debug(`error in connection to ${ipeer.host}:${ipeer.port}`)
                 } catch (e) {
                     logger.debug(e)
                 }
@@ -313,7 +312,7 @@ export class RabbitNetwork implements INetwork {
                     socket.end()
                     this.peers.delete(key)
                     this.peerDatabase.deactivate(key)
-                    logger.debug(`connection timeout on ${key} ${ipeer.host}:${ipeer.port}`)
+                    logger.warn(`connection timeout on ${ipeer.host}:${ipeer.port}`)
                 } catch (e) {
                     logger.debug(e)
                 }
@@ -323,7 +322,7 @@ export class RabbitNetwork implements INetwork {
                     socket.end()
                     this.peers.delete(key)
                     this.peerDatabase.deactivate(key)
-                    logger.debug(`disconnected from ${key} ${ipeer.host}:${ipeer.port}`)
+                    logger.warn(`disconnected from ${ipeer.host}:${ipeer.port}`)
                 } catch (e) {
                     logger.debug(e)
                 }
@@ -333,7 +332,7 @@ export class RabbitNetwork implements INetwork {
                     socket.end()
                     this.peers.delete(key)
                     this.peerDatabase.deactivate(key)
-                    logger.debug(`ended connection with ${key} ${ipeer.host}:${ipeer.port}`)
+                    logger.debug(`ended connection with ${ipeer.host}:${ipeer.port}`)
                 } catch (e) {
                     logger.debug(e)
                 }
@@ -343,8 +342,6 @@ export class RabbitNetwork implements INetwork {
 
             if (save) {
                 await this.peerDatabase.seen(ipeer)
-                // only receive connected peers
-                // so failCount is 0
                 const newIPeers = await peer.getPeers()
                 const info: proto.IPeer[] = []
                 for (const newIPeer of newIPeers) {
@@ -352,7 +349,7 @@ export class RabbitNetwork implements INetwork {
                 }
                 await this.peerDatabase.putPeers(info)
             }
-            logger.info(`New connection -- ${peer.socketBuffer.getInfo()} -- GUID=${peerStatus.guid.slice(0, 8) + ".."}`)
+            logger.info(`New connection(${peerStatus.version})  ${peer.socketBuffer.getInfo()}`)
             return peer
         } catch (e) { }
     }
