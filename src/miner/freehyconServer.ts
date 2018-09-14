@@ -62,7 +62,7 @@ export class FreeHyconServer {
     private readonly NUM_JOB_BUFFER = 10
     private readonly ALPHA_INTERN = 0.4
     private readonly MEANTIME_INTERN = 10000
-    private readonly DIFFCULTY_INTERN = 1. / (400. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
+    private readonly DIFFCULTY_INTERN = 1. / (500. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
     private readonly ALPHA_INTERVIEW = 0.1
     private readonly MEANTIME_INTERVIEW = 10000
     private NUM_INTERN_PROBLEMS = 10
@@ -127,7 +127,7 @@ export class FreeHyconServer {
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
-            let index = 0
+            let index = getRandomIndex()
             for (const [key, worker] of this.mapWorker) {
                 if (worker.socket === undefined) { continue }
                 if (worker.status === WorkerStatus.Working) {
@@ -480,7 +480,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0xFFFF)
+    return Math.floor(Math.random() * 0xFFFFFF)
 }
 function checkAddress(address: string) {
     const isAddress = Address.isAddress(address)
