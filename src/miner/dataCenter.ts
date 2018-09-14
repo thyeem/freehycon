@@ -46,6 +46,7 @@ export class DataCenter {
     public rewardBase: Map<string, IMinerReward>
     public poolHashshare: number
     public poolHashrate: number
+    public poolWorkers: number
     public actualHashrate: number
     public actualWorkers: number
     public miners: Map<string, IMiner>
@@ -159,19 +160,19 @@ export class DataCenter {
         }
     }
     public async release(workers: IWorker[]) {
-        const workerCount = workers.length
+        this.poolWorkers += workers.length
         await this.updateDataSet(workers)
-        const poolSummary = this.getPoolSummary(workerCount)
+        const poolSummary = this.getPoolSummary()
         const poolMiners = this.getPoolMiners()
         const poolWorkers = this.getPoolWorkers()
         this.mongoServer.addSummary(poolSummary)
         this.mongoServer.addMiners(poolMiners)
         this.mongoServer.addWorkers(poolWorkers)
-        logger.warn(`total(${workerCount}): ${(0.001 * this.poolHashrate).toFixed(2)} kH/s | working(${this.actualWorkers}): ${(0.001 * this.actualHashrate).toFixed(2)} kH/s`)
+        logger.warn(`total(${this.poolWorkers}): ${(0.001 * this.poolHashrate).toFixed(2)} kH/s | working(${this.actualWorkers}): ${(0.001 * this.actualHashrate).toFixed(2)} kH/s`)
     }
-    public getPoolSummary(workerCount: number) {
+    public getPoolSummary() {
         const poolSummary: IPoolSumary = {
-            workerCount,
+            workerCount: this.poolWorkers,
             poolHashrate: this.poolHashrate,
             poolHashshare: this.poolHashshare,
         }
@@ -219,6 +220,7 @@ export class DataCenter {
     private reset() {
         this.poolHashshare = 0
         this.poolHashrate = 0
+        this.poolWorkers = 0
         this.actualWorkers = 0
         this.actualHashrate = 0
         this.miners.clear()
