@@ -33,14 +33,22 @@ export class MongoServer {
         this.db = this.client.db(this.dbName)
 
         //create index
-        const collection = this.db.collection(`MinedBlocks`)
-        collection.createIndex({ "height": 1 }, { unique: true })
+        // const collection = this.db.collection(`MinedBlocks`)
+        // collection.createIndex({ "height": 1 }, { unique: true })
     }
 
 
     public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
-        await collection.insertOne(block)
+        const newBlock = {
+            _id: block._id,
+            hash: block._id,
+            mainchain: block.mainchain,
+            prevHash: block.prevHash,
+            timestamp: block.timestamp,
+            height: block.height
+        }
+        await collection.insertOne(newBlock)
         //await collection.update({ height: block.height }, { _id: block.hash, mainchain: block.mainchain, height: block.height, timestamp: block.timestamp, hash: block.hash, prevHash: block.prevHash }, { upsert: true })
     }
     public async addSummary(summary: IPoolSumary) {

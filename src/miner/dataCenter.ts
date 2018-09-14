@@ -36,7 +36,7 @@ export interface IMinerReward {
 }
 export interface IMinedBlocks {
     mainchain: boolean
-    hash: string
+    _id: string
     prevHash: string
     timestamp: number
     height: number

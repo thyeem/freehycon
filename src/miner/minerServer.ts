@@ -109,7 +109,7 @@ export class MinerServer {
         const status = await this.consensus.getBlockStatus(hash)
         const height = await this.consensus.getBlockHeight(hash)
         const newBlock: IMinedBlocks = {
-            hash: hash.toString(),
+            _id: hash.toString(),
             height,
             mainchain: status === BlockStatus.MainChain,
             prevHash: found.block.header.previousHash[0].toString(),
@@ -158,7 +158,7 @@ export class MinerServer {
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
         clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
-        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 5000)
+        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 7000)
     }
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
