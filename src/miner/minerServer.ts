@@ -13,9 +13,9 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
-import { IMinedBlocks, IMinerReward, formatTime } from "./dataCenter"
+import { formatTime, IMinedBlocks, IMinerReward } from "./dataCenter"
 import { MongoServer } from "./mongoServer"
-import { RabbitmqServer } from "./rabbitServer";
+import { RabbitmqServer } from "./rabbitServer"
 const logger = getLogger("Miner")
 
 export class MinerServer {
@@ -29,8 +29,8 @@ export class MinerServer {
         return DifficultyAdjuster.acceptable(await Hash.hashCryptonight(buffer), target)
     }
     public mongoServer: MongoServer
-    public queuePutWork: RabbitmqServer;
-    public queueSubmitWork: RabbitmqServer;
+    public queuePutWork: RabbitmqServer
+    public queueSubmitWork: RabbitmqServer
     public txpool: ITxPool
     public consensus: IConsensus
     public network: INetwork
@@ -47,78 +47,62 @@ export class MinerServer {
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(() => {
-            if (globalOptions.banker) { this.runPollingPayWages() }
-            this.runPollingUpdateLastBlock()
+            if (globalOptions.banker) { this.pollingPayWages() }
+            this.pollingUpdateLastBlock()
         }, 5000)
     }
     public async setupRabbitMQ() {
-        this.queuePutWork = new RabbitmqServer("putwork");
-        await this.queuePutWork.initialize();
-        this.queueSubmitWork = new RabbitmqServer("submitwork");
-        await this.queueSubmitWork.initialize();
+        this.queuePutWork = new RabbitmqServer("putwork")
+        await this.queuePutWork.initialize()
+        this.queueSubmitWork = new RabbitmqServer("submitwork")
+        await this.queueSubmitWork.initialize()
         this.queueSubmitWork.receive((msg: any) => {
             if (MongoServer.debugRabbit) {
-                logger.info(" [x] Received Submit Block %s", msg.content.toString());
+                logger.info(" [x] Received Submit Block %s", msg.content.toString())
             }
-            let one = JSON.parse(msg.content.toString())
+            const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
-            //logger.info(`Block ${JSON.stringify(block)}`)
             this.processSubmitBlock({ block, prehash })
-        });
+        })
     }
-
-    public async runPollingPayWages() {
-        this.pollingPayWages()
-        setTimeout(() => { this.runPollingPayWages() }, MongoServer.timeoutPayWages)
+    public async pollingPayWages() {
+        this.payWages()
+        setTimeout(() => { this.pollingPayWages() }, MongoServer.timeoutPayWages)
     }
-    public async runPollingUpdateBlockStatus() {
-        this.updateBlockStatus()
-        setTimeout(() => { this.runPollingUpdateBlockStatus() }, MongoServer.timeoutUpdateBlockStatus)
-    }
-
-    public async runPollingUpdateLastBlock() {
+    public async pollingUpdateLastBlock() {
         this.updateLastBlock()
-        setTimeout(() => { this.runPollingUpdateLastBlock() }, 5000)
+        setTimeout(() => { this.pollingUpdateLastBlock() }, 5000)
     }
     public async updateLastBlock() {
         const tip = this.consensus.getBlocksTip()
         const block = await this.consensus.getBlockByHash(tip.hash)
         if (!(block instanceof Block)) { return }
         const lastBlock = {
-            height: tip.height,
+            ago: formatTime(Date.now() - block.header.timeStamp) + " ago",
             blockHash: tip.hash.toString(),
+            height: tip.height,
             miner: block.header.miner.toString(),
-            ago: formatTime(Date.now() - block.header.timeStamp) + " ago"
         }
         this.mongoServer.updateLastBlock(lastBlock)
     }
-    public async updateBlockStatus() {
-        const rows = await this.mongoServer.getMinedBlocks()
-        for (const row of rows) {
-            const hash = Hash.decode(row.hash)
-            const status = await this.consensus.getBlockStatus(hash)
-            const isMainchain = status === BlockStatus.MainChain
-            await this.mongoServer.updateBlockStatus(row.hash, isMainchain)
-        }
-    }
-
     public async processSubmitBlock(found: any) {
         await this.submitBlock(found.block)
         const hash = new Hash(found.block.header)
         const status = await this.consensus.getBlockStatus(hash)
         const height = await this.consensus.getBlockHeight(hash)
-        const newBlock: IMinedBlocks = {
+        const block: IMinedBlocks = {
             _id: hash.toString(),
+            hash: hash.toString(),
             height,
             mainchain: status === BlockStatus.MainChain,
             prevHash: found.block.header.previousHash[0].toString(),
             timestamp: found.block.header.timeStamp,
         }
-        this.mongoServer.addMinedBlock(newBlock)
+        this.mongoServer.addMinedBlock(block)
     }
-    public async pollingPayWages() {
-        const pays = await this.mongoServer.pollingPayWages()
+    public async payWages() {
+        const pays = await this.mongoServer.getPayWages()
         if (pays.length > 0) {
             for (const pay of pays) {
                 const hash = Hash.decode(pay.blockHash)
@@ -131,10 +115,10 @@ export class MinerServer {
                         const rewardBase = new Map<string, IMinerReward>()
                         for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
                         this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
-                        this.mongoServer.deletePayWage(pay._id)
+                        this.mongoServer.deletePayWages(pay._id)
                     } else {
                         this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
-                        this.mongoServer.deletePayWage(pay._id)
+                        this.mongoServer.deletePayWages(pay._id)
                     }
                     return
                 } else {

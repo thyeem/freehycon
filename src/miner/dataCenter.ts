@@ -1,6 +1,6 @@
 import { getLogger } from "log4js"
-import { IWorker, WorkerStatus } from "./freehyconServer"
 import { MongoServer } from "./mongoServer"
+import { IWorker, WorkerStatus } from "./stratumServer"
 const logger = getLogger("dataCenter")
 
 export interface IPoolSumary {
@@ -35,8 +35,9 @@ export interface IMinerReward {
     fee: number
 }
 export interface IMinedBlocks {
-    mainchain: boolean
     _id: string
+    hash: string
+    mainchain: boolean
     prevHash: string
     timestamp: number
     height: number
@@ -68,15 +69,14 @@ export class DataCenter {
     }
     public async updateDataSet(workers: IWorker[]) {
         await this.mongoServer.updateClusterWorkers(workers)
-        let allWorkers = await this.mongoServer.getClusterAllWorkers()
-        //logger.info(`All Workers ${JSON.stringify(allWorkers)}`)
+        const allWorkers = await this.mongoServer.getClusterAllWorkers()
         this.reset()
         this.updateWorkers(allWorkers)
         this.updateMiners()
         this.updateRewardBase()
     }
     public loadWorkers(workers: IWorkMan[]) {
-        for (let worker of workers) {
+        for (const worker of workers) {
             let miner = this.workers.get(worker.address)
             if (miner === undefined) {
                 this.workers.set(worker.address, new Map<string, IWorkMan>())
@@ -109,14 +109,14 @@ export class DataCenter {
             miner.set(worker.workerId, {
                 address: worker.address,
                 alive: true,
-                extra,
-                workerId: worker.workerId,
-                hashrate: worker.hashrate,
-                hashshare,
                 elapsed,
                 elapsedStr: formatTime(elapsed),
+                extra,
                 fee: hashshare * worker.fee,
-                reward: hashshare * (1 - worker.fee)
+                hashrate: worker.hashrate,
+                hashshare,
+                reward: hashshare * (1 - worker.fee),
+                workerId: worker.workerId,
             })
         }
     }
@@ -172,9 +172,9 @@ export class DataCenter {
     }
     public getPoolSummary() {
         const poolSummary: IPoolSumary = {
-            workerCount: this.poolWorkers,
             poolHashrate: this.poolHashrate,
             poolHashshare: this.poolHashshare,
+            workerCount: this.poolWorkers,
         }
         return poolSummary
     }
@@ -197,14 +197,14 @@ export class DataCenter {
                 poolWorkers.push({
                     address: worker.address,
                     alive: worker.alive,
-                    extra: worker.extra,
-                    workerId: worker.workerId,
-                    hashrate: worker.hashrate,
-                    hashshare: worker.hashshare,
                     elapsed: worker.elapsed,
                     elapsedStr: worker.elapsedStr,
-                    reward: worker.reward,
+                    extra: worker.extra,
                     fee: worker.fee,
+                    hashrate: worker.hashrate,
+                    hashshare: worker.hashshare,
+                    reward: worker.reward,
+                    workerId: worker.workerId,
                 })
             }
         }

@@ -9,7 +9,7 @@
         "assets": "mnemonic/*"
     },
     "scripts": {
-        "stratum": "cp -f src/stratum_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --freehycon",
+        "stratum": "cp -f src/stratum_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
         "hycon": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0",
         "banker": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --banker",
         "seed": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=freehycon --bootstrap",

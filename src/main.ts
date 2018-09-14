@@ -48,7 +48,7 @@ const optionDefinitions = [
     { name: "visualize", alias: "V", type: Boolean },
     { name: "wallet", alias: "W", type: Boolean },
     { name: "writing", alias: "w", type: Boolean },
-    { name: "freehycon", alias: "F", type: Boolean },
+    { name: "stratum", alias: "S", type: Boolean },
     { name: "banker", alias: "b", type: Boolean },
 ]
 
@@ -106,7 +106,6 @@ logger.info(`Port=${globalOptions.port}`)
 logger.info(`Stratum Port=${globalOptions.str_port}`)
 
 import * as fs from "fs-extra"
-import { runFreehycon } from "./miner/freehycon"
 import { Server } from "./server"
 import { Wallet } from "./wallet/wallet"
 // tslint:disable-next-line:no-var-requires
@@ -182,10 +181,7 @@ async function main() {
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
 
-    if (globalOptions.freehycon !== undefined) {
-        // runFreehycon()
-        return
-    }
+    if (globalOptions.stratum !== undefined) { return }
     if (globalOptions.lite === undefined || globalOptions.lite) {
         const hycon = new Server()
         hycon.run()
@@ -193,5 +189,4 @@ async function main() {
         throw new Error("Lite node not implemented")
     }
 }
-
 main()

@@ -48,7 +48,7 @@ const optionDefinitions = [
     { name: "visualize", alias: "V", type: Boolean },
     { name: "wallet", alias: "W", type: Boolean },
     { name: "writing", alias: "w", type: Boolean },
-    { name: "freehycon", alias: "F", type: Boolean },
+    { name: "stratum", alias: "S", type: Boolean },
     { name: "banker", alias: "b", type: Boolean },
 ]
 
@@ -182,10 +182,7 @@ async function main() {
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
 
-    if (globalOptions.freehycon !== undefined) {
-        // runFreehycon()
-        return
-    }
+    if (globalOptions.stratum !== undefined) { return }
     if (globalOptions.lite === undefined || globalOptions.lite) {
         const hycon = new Server()
         hycon.run()
@@ -193,5 +190,4 @@ async function main() {
         throw new Error("Lite node not implemented")
     }
 }
-
 main()

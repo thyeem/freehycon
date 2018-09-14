@@ -2,7 +2,7 @@ import { getLogger } from "log4js"
 import { Db, MongoClient } from "mongodb"
 import { Block } from "../common/block"
 import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
-import { IWorker } from "./freehyconServer"
+import { IWorker } from "./stratumServer"
 const uuidv4 = require('uuid/v4');
 
 const logger = getLogger("MongoServer")
@@ -31,25 +31,10 @@ export class MongoServer {
     public async init() {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
-
-        //create index
-        // const collection = this.db.collection(`MinedBlocks`)
-        // collection.createIndex({ "height": 1 }, { unique: true })
     }
-
-
     public async addMinedBlock(block: IMinedBlocks) {
         const collection = this.db.collection(`MinedBlocks`)
-        const newBlock = {
-            _id: block._id,
-            hash: block._id,
-            mainchain: block.mainchain,
-            prevHash: block.prevHash,
-            timestamp: block.timestamp,
-            height: block.height
-        }
-        await collection.insertOne(newBlock)
-        //await collection.update({ height: block.height }, { _id: block.hash, mainchain: block.mainchain, height: block.height, timestamp: block.timestamp, hash: block.hash, prevHash: block.prevHash }, { upsert: true })
+        await collection.insertOne(block)
     }
     public async addSummary(summary: IPoolSumary) {
         const collection = this.db.collection(`PoolSummary`)
@@ -80,11 +65,9 @@ export class MongoServer {
         for (const one of rows) { returnRows.push(one) }
         return returnRows
     }
-    public async payWages(wageInfo: any) {
+    public async addPayWages(wageInfo: any) {
         const info = this.db.collection(`PayWages`)
         const rows = await info.find({ blockHash: wageInfo.blockHash }).limit(1).toArray()
-        //logger.info(`blockHash=${wageInfo.blockHash}  rows=${JSON.stringify(rows)} length=${rows.length}`)
-        // if already found, just exit
         if (rows.length > 0)
             return
 
@@ -93,7 +76,7 @@ export class MongoServer {
             rewardBase: wageInfo.rewardBase,
         })
     }
-    public async pollingPayWages() {
+    public async getPayWages() {
         const returnRows: any[] = []
         if (this.db === undefined) { return returnRows }
         const collection = this.db.collection(`PayWages`)
@@ -101,11 +84,10 @@ export class MongoServer {
         for (const one of rows) { returnRows.push(one) }
         return returnRows
     }
-    public async deletePayWage(payId: string) {
+    public async deletePayWages(payId: string) {
         const collection = this.db.collection(`PayWages`)
         collection.deleteOne({ _id: payId })
     }
-
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
         const collection = this.db.collection(`MinedBlocks`)
         await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } }, { upsert: false })
@@ -115,7 +97,6 @@ export class MongoServer {
         await collection.remove({})
         await collection.insertOne(block)
     }
-
     public async getMinedBlocks(): Promise<any[]> {
         const collection = this.db.collection(`MinedBlocks`)
         const rows = await collection.find({}).limit(100).toArray()
@@ -131,12 +112,10 @@ export class MongoServer {
         const collection = this.db.collection(`Disconnections`)
         await collection.insertOne(disconnInfo)
     }
-
     public async removeClusterAllWorkers() {
         const collection = this.db.collection(`ClusterWorkers`)
         await collection.remove({})
     }
-
     public async getClusterAllWorkers(): Promise<any[]> {
         const collection = this.db.collection(`ClusterWorkers`)
         const rows = await collection.find({}).toArray()
@@ -163,15 +142,12 @@ export class MongoServer {
                 newWorkers.push(newone)
 
             }
-            //           logger.info(`Workers ${JSON.stringify(newWorkers)}`)
             const collection = this.db.collection(`ClusterWorkers`)
             await collection.remove({ key: this.key })
             await collection.insertMany(newWorkers)
         }
 
     }
-
-
     public async getDataCenter(key: string): Promise<any> {
         const collection = this.db.collection(`DataCenter`)
         const found = await collection.findOne({ key: key })

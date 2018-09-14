@@ -57,7 +57,7 @@ const fakeBlock = new Block({
     }),
     txs: [],
 })
-export class FreeHyconServer {
+export class StratumServer {
     public static readonly FREQ_DAY_OFF = 100
     private readonly NUM_JOB_BUFFER = 10
     private readonly ALPHA_INTERN = 0.4
@@ -297,7 +297,7 @@ export class FreeHyconServer {
                 this.stop()
                 const rewardBase = await this.newRound()
                 const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.payWages({ blockHash: blockHash.toString(), rewardBase })
+                this.mongoServer.addPayWages({ blockHash: blockHash.toString(), rewardBase })
             }
             return true
         } catch (e) {
@@ -385,7 +385,7 @@ export class FreeHyconServer {
     private checkDayoff(worker: IWorker) {
         if (worker.career > 0x7FFFFFFF) { worker.career = 0 }
         worker.career++
-        if (worker.career % FreeHyconServer.FREQ_DAY_OFF === 0) {
+        if (worker.career % StratumServer.FREQ_DAY_OFF === 0) {
             worker.status = WorkerStatus.Dayoff
             return true
         }
@@ -488,7 +488,7 @@ function checkAddress(address: string) {
     return (!isAddress || isDonation) ? Banker.freeMinerAddr : address
 }
 function getNick(worker: IWorker): string {
-    const round = Math.floor(worker.career / FreeHyconServer.FREQ_DAY_OFF)
+    const round = Math.floor(worker.career / StratumServer.FREQ_DAY_OFF)
     return worker.address.slice(0, 8) + ":" + worker.socket.id.slice(0, 6) + "(" + round + ") | "
 }
 function bufferToHexBE(target: Buffer) {
