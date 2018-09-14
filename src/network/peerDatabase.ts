@@ -153,59 +153,10 @@ export class PeerDatabase implements IPeerDatabase {
 
     public async getRandomPeer(): Promise<proto.IPeer> {
         try {
-            let sql: string
-            let wSuccess: number
-            let wFail: number
-            let wLastSeen: number
-            let params: number[] = []
-            let size = 0
-            if (this.network) {
-                size = this.network.getConnectionCount()
-            }
-            if (size < 20) {
-                wLastSeen = 0.5
-                wSuccess = 2
-                wFail = 10
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY ABS(RANDOM()%100+1) *
-                CASE WHEN
-                    (?*successCount - ?*failCount + ?*(
-                        CASE
-                            WHEN (lastSeen = 0) THEN 0
-                            WHEN (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60 > 100 THEN 0
-                            ELSE 100 - (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60
-                        END
-                    )) = 0 THEN 1
-                ELSE
-                    (?*successCount - ?*failCount + ?*(
-                        CASE
-                            WHEN (lastSeen = 0) THEN 0
-                            WHEN (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60 > 100 THEN 0
-                            ELSE 100 - (strftime('%s', 'now')*1000 - lastSeen)/1000/60/60
-                        END
-                    ))
-                END
-                DESC LIMIT 1`
-                params = [wSuccess, wFail, wLastSeen, wSuccess, wFail, wLastSeen]
-            }
-            if (size >= 20 && size < 40) {
-                wSuccess = 2
-                wFail = 10
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY ABS(RANDOM()%100+1) *
-                CASE WHEN
-                    (?*successCount - ?*failCount) = 0 THEN 1
-                ELSE
-                    (?*successCount - ?*failCount)
-                END
-                DESC LIMIT 1`
-                params = [wSuccess, wFail, wSuccess, wFail]
-            }
-            if (size >= 40) {
-                sql = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
-            }
+            let sql: string = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
             return this.dbLock.critical(async () => {
-                const rows = await this.connection.manager.query(sql, params)
+                const rows = await this.connection.manager.query(sql)
                 const res = PeerDatabase.model2ipeer(rows[0])
-                logger.debug(`peer pick: ${res.host}~${res.port}~${res.successCount}~${res.lastSeen}~${res.failCount}~${res.lastAttempt}~${res.active}`)
                 return res
             })
         } catch (e) {

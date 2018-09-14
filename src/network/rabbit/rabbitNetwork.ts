@@ -209,7 +209,7 @@ export class RabbitNetwork implements INetwork {
     }
     private async connectLoop() {
         this.connectToPeer().catch(() => undefined)
-        setTimeout(() => this.connectLoop(), 2000)
+        setTimeout(() => this.connectLoop(), 1000)
     }
     public showInfo() {
         logger.info(`Peers Count=${this.peers.size}`)
@@ -368,7 +368,7 @@ export class RabbitNetwork implements INetwork {
         }
     }
     private async connectSeeds() {
-        if (this.peers.size >= 10) { return }
+        if (this.peers.size >= 5) { return }
         for (const seed of RabbitNetwork.seeds) {
             this.connect(seed.host, seed.port, false).then(async (rabbitPeer) => {
                 const peers = await rabbitPeer.getPeers()
