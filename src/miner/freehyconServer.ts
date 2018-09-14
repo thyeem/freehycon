@@ -58,13 +58,13 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class FreeHyconServer {
-    public static readonly FREQ_DAY_OFF = 100
+    public static readonly FREQ_DAY_OFF = 150
     private readonly NUM_JOB_BUFFER = 10
-    private readonly ALPHA_INTERN = 0.3
-    private readonly MEANTIME_INTERN = 15000
-    private readonly DIFFCULTY_INTERN = 1. / (300. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
+    private readonly ALPHA_INTERN = 0.4
+    private readonly MEANTIME_INTERN = 10000
+    private readonly DIFFCULTY_INTERN = 1. / (400. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
     private readonly ALPHA_INTERVIEW = 0.1
-    private readonly MEANTIME_INTERVIEW = 15000
+    private readonly MEANTIME_INTERVIEW = 10000
     private NUM_INTERN_PROBLEMS = 10
     private NUM_INTERVIEW_PROBLEMS = 30
 
@@ -131,12 +131,12 @@ export class FreeHyconServer {
             for (const [key, worker] of this.mapWorker) {
                 if (worker.socket === undefined) { continue }
                 if (worker.status === WorkerStatus.Working) {
-                    // if (this.checkDayoff(worker)) {
-                    // this.putWorkOnInspector(worker)
-                    // } else {
-                    this.measureWorker(worker)
-                    this.notifyJob(worker.socket, ++index, newJob)
-                    // }
+                    if (this.checkDayoff(worker)) {
+                        this.putWorkOnInspector(worker)
+                    } else {
+                        this.measureWorker(worker)
+                        this.notifyJob(worker.socket, ++index, newJob)
+                    }
                     continue
                 } else { // worker.status === ( Intern or OnInterview or Dayoff )
                     this.putWorkOnInspector(worker)
