@@ -13,7 +13,7 @@ import { globalOptions } from "../main"
 import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
-import { formatTime, IMinedBlocks, IMinerReward } from "./dataCenter"
+import { formatTime, ILastBlock, IMinedBlocks, IMinerReward } from "./collector"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
 const logger = getLogger("Miner")
@@ -43,12 +43,15 @@ export class MinerServer {
         this.consensus = consensus
         this.network = network
         this.mongoServer = new MongoServer()
-        if (!globalOptions.banker) { this.setupRabbitMQ() }
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
         setTimeout(() => {
-            if (globalOptions.banker) { this.pollingPayWages() }
-            this.pollingUpdateLastBlock()
+            if (globalOptions.banker) {
+                this.pollingPayWages()
+            } else {
+                this.setupRabbitMQ()
+                this.pollingUpdateLastBlock()
+            }
         }, 5000)
     }
     public async setupRabbitMQ() {
@@ -78,7 +81,7 @@ export class MinerServer {
         const tip = this.consensus.getBlocksTip()
         const block = await this.consensus.getBlockByHash(tip.hash)
         if (!(block instanceof Block)) { return }
-        const lastBlock = {
+        const lastBlock: ILastBlock = {
             ago: formatTime(Date.now() - block.header.timeStamp) + " ago",
             blockHash: tip.hash.toString(),
             height: tip.height,
@@ -105,6 +108,7 @@ export class MinerServer {
         const pays = await this.mongoServer.getPayWages()
         if (pays.length > 0) {
             for (const pay of pays) {
+                const rewardBase: IMinerReward[] = pay.rewardBase
                 const hash = Hash.decode(pay.blockHash)
                 const status = await this.consensus.getBlockStatus(hash)
                 const height = await this.consensus.getBlockHeight(hash)
@@ -112,13 +116,11 @@ export class MinerServer {
                 const isMainchain = status === BlockStatus.MainChain
                 if (height + MongoServer.confirmations < tip.height) {
                     if (isMainchain) {
-                        const rewardBase = new Map<string, IMinerReward>()
-                        for (const key in pay.rewardBase) { if (1) { rewardBase.set(key, pay.rewardBase[key]) } }
                         this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
-                        this.mongoServer.deletePayWages(pay._id)
+                        this.mongoServer.deletePayWage(pay._id)
                     } else {
                         this.mongoServer.updateBlockStatus(hash.toString(), isMainchain)
-                        this.mongoServer.deletePayWages(pay._id)
+                        this.mongoServer.deletePayWage(pay._id)
                     }
                     return
                 } else {

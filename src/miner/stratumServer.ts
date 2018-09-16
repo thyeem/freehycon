@@ -7,11 +7,11 @@ import { BlockHeader } from "../common/blockHeader"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
-import { DataCenter } from "./dataCenter"
-import { WorkerInspector } from "./workerInspector"
+import { formatTime, IMinerReward, IWorkerCluster } from "./collector"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
-import { RabbitmqServer } from "./rabbitServer";
+import { RabbitmqServer } from "./rabbitServer"
+import { WorkerInspector } from "./workerInspector"
 
 // tslint:disable-next-line:no-var-requires
 const LibStratum = require("stratum").Server
@@ -32,8 +32,7 @@ export interface IJob {
     solved: boolean
 }
 export interface IWorker {
-    socket: any
-    workerId: string
+    client: any
     address: string
     fee: number
     hashrate: number
@@ -42,8 +41,10 @@ export interface IWorker {
     career: number
     inspector: WorkerInspector
     invalid: number
+    ip: string
     tick: number
     tickLogin: number
+    workerId: string
 }
 const fakeBlock = new Block({
     header: new BlockHeader({
@@ -58,37 +59,38 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class StratumServer {
-    public static readonly FREQ_DAY_OFF = 100
-    private readonly NUM_JOB_BUFFER = 10
-    private readonly ALPHA_INTERN = 0.4
-    private readonly MEANTIME_INTERN = 20000
-    private readonly DIFFCULTY_INTERN = 1. / (200. * 0.001 * this.MEANTIME_INTERN / Math.LN2)
-    private readonly ALPHA_INTERVIEW = 0.1
-    private readonly MEANTIME_INTERVIEW = 20000
+    public static FREQ_DAY_OFF = 100
     private NUM_INTERN_PROBLEMS = 20
     private NUM_INTERVIEW_PROBLEMS = 20
-
+    private readonly INITIAL_HASHRATE = 200
+    private readonly NUM_JOB_BUFFER = 10
+    private readonly ALPHA_INTERN = 0.3
+    private readonly MEANTIME_INTERN = 20000
+    private DIFFCULTY_INTERN = 1. / (this.INITIAL_HASHRATE * 0.001 * this.MEANTIME_INTERN / Math.LN2)
+    private readonly ALPHA_INTERVIEW = 0.1
+    private readonly MEANTIME_INTERVIEW = 20000
     private readonly NUM_DAYOFF_PROBLEMS = 1
-    private readonly THRESHOLD_BLACKLIST = 10
+    private readonly THRESHOLD_BLACKLIST = 30
     private readonly THRESHOLD_MIN_HASHRATE = 30
     private readonly INTEVAL_PATROL_BLACKLIST = 300000
     private readonly INTEVAL_RELEASE_DATA = 10000
     private jobId: number
     private port: number
+    private mongoServer: MongoServer
+    private queuePutWork: RabbitmqServer
+    private queueSubmitWork: RabbitmqServer
     private stratum: any
     private mapWorker: Map<string, IWorker>
     private mapJob: Map<number, IJob>
     private blacklist: Map<string, number>
-    private dataCenter: DataCenter
     private ongoingPrehash: string
-    public mongoServer: MongoServer
-    public queuePutWork: RabbitmqServer;
-    public queueSubmitWork: RabbitmqServer;
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
         if (!MongoServer.isReal) {
             this.NUM_INTERN_PROBLEMS = 1
             this.NUM_INTERVIEW_PROBLEMS = 1
+            this.DIFFCULTY_INTERN = 0.05
+            StratumServer.FREQ_DAY_OFF = 10
         }
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
@@ -96,32 +98,30 @@ export class StratumServer {
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 200 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
-        this.dataCenter = new DataCenter(this.mongoServer)
         this.blacklist = new Map<string, number>()
         this.jobId = 0
         setTimeout(async () => {
-            await this.dataCenter.preload()
-            await this.patrolBlacklist()
+            // await this.patrolBlacklist()
             this.init()
             this.releaseData()
         }, 2000)
     }
 
     public async setupRabbitMQ() {
-        this.queuePutWork = new RabbitmqServer("putwork");
-        await this.queuePutWork.initialize();
-        this.queueSubmitWork = new RabbitmqServer("submitwork");
-        await this.queueSubmitWork.initialize();
+        this.queuePutWork = new RabbitmqServer("putwork")
+        await this.queuePutWork.initialize()
+        this.queueSubmitWork = new RabbitmqServer("submitwork")
+        await this.queueSubmitWork.initialize()
         await this.queuePutWork.receive((msg: any) => {
             if (MongoServer.debugRabbit) {
-                logger.info(" [x] Received PutWork %s", msg.content.toString());
+                logger.info(" [x] Received PutWork %s", msg.content.toString())
             }
-            let one = JSON.parse(msg.content.toString())
+            const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
-            this.stop() // stop mining before putWork
+            this.stop()
             this.putWork(block, prehash)
-        });
+        })
     }
 
     public putWork(block: Block, prehash: Uint8Array) {
@@ -129,13 +129,13 @@ export class StratumServer {
             const newJob = this.newJob(block, prehash)
             let index = getRandomIndex()
             for (const [key, worker] of this.mapWorker) {
-                if (worker.socket === undefined) { continue }
+                if (worker.client === undefined) { continue }
                 if (worker.status === WorkerStatus.Working) {
                     if (this.checkDayoff(worker)) {
                         this.putWorkOnInspector(worker)
                     } else {
                         this.measureWorker(worker)
-                        this.notifyJob(worker.socket, ++index, newJob)
+                        this.notifyJob(worker.client, ++index, newJob)
                     }
                     continue
                 } else { // worker.status === ( Intern or OnInterview or Dayoff )
@@ -151,7 +151,7 @@ export class StratumServer {
     }
     public async putWorkOnInspector(worker: IWorker) {
         const newJob = this.newJob(fakeBlock, genPrehash(), worker)
-        this.notifyJob(worker.socket, getRandomIndex(), newJob, worker)
+        this.notifyJob(worker.client, getRandomIndex(), newJob, worker)
         if (!worker.inspector.jobTimer.lock) {
             worker.inspector.jobTimer.lock = true
             worker.inspector.jobTimer.start = Date.now()
@@ -159,42 +159,46 @@ export class StratumServer {
     }
     private init() {
         logger.fatal(`FreeHycon Mining Server(FHMS) gets started.`)
-        this.stratum.on("mining", async (req: any, deferred: any, socket: any) => {
-            let worker
+        this.stratum.on("mining", async (req: any, deferred: any, client: any) => {
+            let worker: IWorker
             switch (req.method) {
                 case "subscribe":
-                    deferred.resolve([socket.id.toString(), "0", "0", 4])
+                    deferred.resolve([client.id.toString(), "0", "0", 4])
                     break
                 case "authorize":
                     const [address, workerId] = req.params.slice(0, 2)
-                    const remoteIP = socket.socket.remoteAddress
+                    const remoteIP = client.socket.remoteAddress
                     let authorized = false
-                    if (this.isInvalidUser(socket, address.trim())) {
-                        this.giveWarnings(socket)
+                    if (this.isInvalidUser(client, address.trim())) {
+                        this.giveWarnings(client)
                     } else {
-                        authorized = true
                         logger.warn(`Authorized worker: ${address} | IP address: ${remoteIP}`)
-                        worker = this.mapWorker.get(socket.id)
-                        if (worker === undefined) { worker = this.welcomeNewWorker(socket) }
-                        worker.address = checkAddress(address)
-                        this.setWorkerId(worker, workerId)
-                        this.setWorkerTick(worker)
+                        const validAddress = checkAddress(address)
+                        const validWorkerId = checkWorkerId(client.id, workerId)
+                        const key = genKey(remoteIP, validAddress, validWorkerId)
+                        authorized = true
+                        worker = await this.mongoServer.findWorker(key)
+                        if (worker === undefined) {
+                            worker = this.welcomeNewWorker(client, key)
+                        } else {
+                            this.updateOldWorker(client, worker)
+                        }
                         this.putWorkOnInspector(worker)
                     }
                     deferred.resolve([authorized])
                     break
                 case "submit":
                     let verified = false
-                    worker = this.mapWorker.get(socket.id)
+                    worker = this.mapWorker.get(client.id)
                     if (worker === undefined) {
-                        this.giveWarnings(socket)
+                        this.giveWarnings(client)
                     } else {
                         const jobId = Number(req.params.job_id)
                         const isWorking: boolean = worker.status === WorkerStatus.Working
                         const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
                         const nick = (isWorking) ? "" : getNick(worker)
                         if (job === undefined || job.solved === true) {
-                            deferred.resolve([verified])
+                            // deferred.resolve([true])
                             break
                         }
                         logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
@@ -212,17 +216,16 @@ export class StratumServer {
                     deferred.reject(LibStratum.errors.METHOD_NOT_FOUND)
             }
         })
-        this.stratum.on("mining.error", (error: any, socket: any) => {
-            this.giveWarnings(socket)
+        this.stratum.on("mining.error", (error: any, client: any) => {
+            this.giveWarnings(client)
             logger.error("Mining error: ", error)
         })
-        this.stratum.on("close", async (socketId: any) => {
-            const worker = this.mapWorker.get(socketId)
+        this.stratum.on("close", async (clientId: any) => {
+            const worker = this.mapWorker.get(clientId)
             if (worker !== undefined) {
-                this.dataCenter.leaveLegacy(worker)
-                this.mapWorker.delete(socketId)
-                this.mongoServer.addDisconnections({ address: worker.address, workerId: worker.workerId, timeStamp: Date.now() })
-                logger.error(`Worker socket closed: ${worker.address} (${socketId})`)
+                this.mapWorker.delete(clientId)
+                this.mongoServer.offWorker(getKey(worker))
+                logger.error(`Worker client closed: ${worker.address} (${clientId})`)
             }
         })
         this.stratum.listen().done((msg: any) => { logger.fatal(msg) })
@@ -252,19 +255,19 @@ export class StratumServer {
         logger.debug(`${nick}Created a new job(${id}): ${bufferToHexBE(job.target)}`)
         return job
     }
-    private async notifyJob(socket: any, index: number, job: IJob, worker?: IWorker) {
+    private async notifyJob(client: any, index: number, job: IJob, worker?: IWorker) {
         const nick = (worker !== undefined) ? getNick(worker) : ""
-        if (socket === undefined) {
-            logger.error(`${nick}undefined of the stratum socket:`)
+        if (client === undefined) {
+            logger.error(`${nick}undefined of the stratum client:`)
             return
         }
         if (job === undefined) { return }
         if (job.prehashHex === undefined) { return }
-        socket.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
+        client.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
             .then(() => {
-                logger.debug(`${nick}Put job(${job.id}): ${socket.id}`)
+                logger.debug(`${nick}Put job(${job.id}): ${client.id}`)
             }, () => {
-                logger.error(`${nick}Put job failed: ${socket.id}`)
+                logger.error(`${nick}Put job failed: ${client.id}`)
             },
         )
     }
@@ -278,7 +281,7 @@ export class StratumServer {
             const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
             if (!nonceCheck) {
                 logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
-                this.giveWarnings(worker.socket)
+                if (worker !== undefined) { this.giveWarnings(worker.client) }
                 return false
             }
             job.solved = true
@@ -290,14 +293,14 @@ export class StratumServer {
             } else { // when working on actual job
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
-                let prehash = minedBlock.header.preHash()
+                const prehash = minedBlock.header.preHash()
                 const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
                 this.queueSubmitWork.send(JSON.stringify(submitData))
 
                 this.stop()
-                const rewardBase = await this.newRound()
+                const rewardBase: IMinerReward[] = await this.newRound()
                 const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.addPayWages({ blockHash: blockHash.toString(), rewardBase })
+                this.mongoServer.addPayWage({ blockHash: blockHash.toString(), rewardBase })
             }
             return true
         } catch (e) {
@@ -309,11 +312,11 @@ export class StratumServer {
         this.measureWorker(worker)
         if (this.checkWorkingDay(worker)) {
             if (worker.hashrate < this.THRESHOLD_MIN_HASHRATE) {
-                this.giveWarnings(worker.socket, 100)
+                this.giveWarnings(worker.client, 100)
                 return
             }
             const resumeJob = this.mapJob.get(this.jobId)
-            this.notifyJob(worker.socket, getRandomIndex(), resumeJob)
+            this.notifyJob(worker.client, getRandomIndex(), resumeJob)
             return
         }
         this.putWorkOnInspector(worker)
@@ -326,42 +329,50 @@ export class StratumServer {
         worker.hashshare += 0.5 * (prevHashrate + worker.hashrate) * 0.001 * (worker.tick - prevTick)
         worker.fee = getDecayedFee(worker.tick - worker.tickLogin)
     }
-    private welcomeNewWorker(socket: any): IWorker {
-        logger.warn(`New worker socket(${socket.id}) connected`)
+    private welcomeNewWorker(client: any, key: string): IWorker {
+        logger.warn(`New worker client(${client.id}) connected`)
+        const [ip, address, workerId] = parseKey(key)
         const worker: IWorker = {
-            address: undefined,
+            address,
             career: 0,
+            client,
             fee: 0.029,
             hashrate: 0,
             hashshare: 0,
             inspector: new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN),
-            socket,
-            status: WorkerStatus.Intern,
             invalid: 0,
-            tick: undefined,
-            tickLogin: undefined,
-            workerId: undefined,
+            ip,
+            status: WorkerStatus.Intern,
+            tick: Date.now(),
+            tickLogin: Date.now(),
+            workerId,
         }
-        this.mapWorker.set(socket.id, worker)
-        return this.mapWorker.get(socket.id)
+        this.mapWorker.set(client.id, worker)
+        return this.mapWorker.get(client.id)
     }
-    private banInvalidUsers(socket: any) {
-        if (socket === undefined) { return }
+    private updateOldWorker(client: any, worker: IWorker) {
+        worker.client = client
+        worker.status = WorkerStatus.Intern
+        worker.inspector = new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN)
+        this.mapWorker.set(client.id, worker)
+    }
+    private banInvalidUsers(client: any) {
+        if (client === undefined) { return }
         try {
-            const remoteIP = socket.socket.remoteAddress
+            const remoteIP = client.socket.remoteAddress
             logger.error(`Banned invalid user of remoteIP: ${remoteIP} | score: ${this.blacklist.get(remoteIP)}`)
-            socket.socket.end()
-            socket.socket.unref()
-            socket.socket.destroy()
+            client.socket.end()
+            client.socket.unref()
+            client.socket.destroy()
         } catch (e) {
-            logger.error(`error in destroying socket: ${e}`)
+            logger.error(`error in destroying client socket: ${e}`)
         } finally {
-            this.mapWorker.delete(socket.id)
+            this.mapWorker.delete(client.id)
         }
     }
-    private isInvalidUser(socket: any, address: string = "") {
-        const remoteIP = socket.socket.remoteAddress
-        const worker = this.mapWorker.get(socket.id)
+    private isInvalidUser(client: any, address: string = "") {
+        const remoteIP = client.socket.remoteAddress
+        const worker = this.mapWorker.get(client.id)
         const byAddress = this.blacklist.get(address) > this.THRESHOLD_BLACKLIST
         const byScore = this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
         if (worker !== undefined) {
@@ -371,15 +382,15 @@ export class StratumServer {
             return byAddress || byScore
         }
     }
-    private giveWarnings(socket: any, increment: number = 1) {
-        const remoteIP = socket.socket.remoteAddress
+    private giveWarnings(client: any, increment: number = 1) {
+        const remoteIP = client.socket.remoteAddress
         const score = this.blacklist.get(remoteIP)
-        const worker = this.mapWorker.get(socket.id)
+        const worker = this.mapWorker.get(client.id)
         if (worker !== undefined) {
             worker.invalid++
-            if (this.isInvalidUser(worker.socket)) { this.banInvalidUsers(worker.socket) }
+            if (this.isInvalidUser(worker.client)) { this.banInvalidUsers(worker.client) }
         } else {
-            if (this.isInvalidUser(socket)) { this.banInvalidUsers(socket) }
+            if (this.isInvalidUser(client)) { this.banInvalidUsers(client) }
         }
     }
     private checkDayoff(worker: IWorker) {
@@ -408,29 +419,9 @@ export class StratumServer {
         return false
     }
     private async newRound() {
-        const workers = Array.from(this.mapWorker.values())
-        await this.dataCenter.updateDataSet(workers)
-        const rewardBase = new Map(this.dataCenter.rewardBase)
-        this.dataCenter.workers.clear()
-        this.dataCenter.rewardBase.clear()
-        for (const [key, worker] of this.mapWorker) { worker.hashshare = 0 }
+        const rewardBase = await this.mongoServer.getRewardBase()
+        this.mongoServer.resetWorkers()
         return rewardBase
-    }
-    private setWorkerId(worker: IWorker, workerId: string) {
-        workerId = workerId.trim()
-        worker.workerId = (workerId === "") ? worker.socket.id.slice(0, 12) : workerId.slice(0, 20)
-    }
-    private setWorkerTick(worker: IWorker) {
-        const miner = this.dataCenter.workers.get(worker.address)
-        if (miner !== undefined) {
-            const workMan = miner.get(worker.workerId)
-            if (workMan !== undefined) {
-                worker.tickLogin = Date.now() - workMan.elapsed
-                worker.tick = Date.now()
-                return
-            }
-        }
-        worker.tick = worker.tickLogin = Date.now()
     }
     private async patrolBlacklist() {
         const list = await this.mongoServer.getBlacklist()
@@ -438,44 +429,47 @@ export class StratumServer {
             this.blacklist.set(item.key, item.score)
         }
         for (const [key, worker] of this.mapWorker) {
-            if (this.isInvalidUser(worker.socket, worker.address)) { this.giveWarnings(worker.socket) }
+            if (this.isInvalidUser(worker.client, worker.address)) { this.giveWarnings(worker.client) }
         }
         setTimeout(() => {
             this.patrolBlacklist()
         }, this.INTEVAL_PATROL_BLACKLIST)
     }
     private async releaseData() {
-        const workers = Array.from(this.mapWorker.values())
-        let lastTime = await this.mongoServer.getDataCenter("time")
-        let put = false
-        if (lastTime !== null) {
-            let now = new Date()
-            let diff = now.getTime() - lastTime // milli seconds
-
-            // 8 seconds
-            if (diff > 8000) {
-                put = true
-                logger.info(`OK TimeDiff=${diff} Now=${now} Old=${lastTime}`)
+        const workers: IWorkerCluster[] = []
+        for (const w of this.mapWorker.values()) {
+            const elapsed = Date.now() - w.tickLogin
+            const worker: IWorkerCluster = {
+                _id: getKey(w),
+                address: w.address,
+                alive: true,
+                elapsed,
+                elapsedStr: formatTime(elapsed),
+                fee: w.hashshare * w.fee,
+                hashrate: w.hashrate,
+                hashshare: w.hashshare,
+                ip: w.ip,
+                reward: w.hashshare * (1 - w.fee),
+                workerId: w.workerId,
             }
-            else {
-                logger.info(`Skip TimeDiff=${diff} Now=${now} Old=${lastTime}`)
-            }
-
+            workers.push(worker)
         }
-        else {
-            put = true
-        }
-        if (put) {
-            // mark the field first
-            await this.mongoServer.putDataCenter("time", new Date())
-            await this.dataCenter.release(workers)
-        }
+        this.mongoServer.updateWorkers(workers)
         setTimeout(() => {
             this.releaseData()
         }, this.INTEVAL_RELEASE_DATA)
     }
 }
 
+export function genKey(ip: string, address: string, workerId: string) {
+    return ip + "_" + address + "_" + workerId
+}
+export function getKey(worker: IWorker) {
+    return (worker === undefined) ? undefined : worker.ip + "_" + worker.address + "_" + worker.workerId
+}
+export function parseKey(key: string) {
+    return key.split("_").slice(0, 3)
+}
 function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
@@ -487,9 +481,13 @@ function checkAddress(address: string) {
     const isDonation = address === Banker.freeHyconAddr
     return (!isAddress || isDonation) ? Banker.freeMinerAddr : address
 }
+function checkWorkerId(clientId: string, workerId: string) {
+    workerId = workerId.trim()
+    return (workerId === "") ? clientId.slice(0, 12) : workerId.slice(0, 20)
+}
 function getNick(worker: IWorker): string {
     const round = Math.floor(worker.career / StratumServer.FREQ_DAY_OFF)
-    return worker.address.slice(0, 8) + ":" + worker.socket.id.slice(0, 6) + "(" + round + ") | "
+    return worker.address.slice(0, 8) + ":" + worker.client.id.slice(0, 6) + "(" + round + ") | "
 }
 function bufferToHexBE(target: Buffer) {
     const buf = Buffer.from(target.slice(24, 32))

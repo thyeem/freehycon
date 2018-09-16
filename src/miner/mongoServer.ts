@@ -1,164 +1,147 @@
 import { getLogger } from "log4js"
 import { Db, MongoClient } from "mongodb"
-import { Block } from "../common/block"
-import { IMinedBlocks, IPoolSumary, IWorkMan, IMiner } from "./dataCenter"
-import { IWorker } from "./stratumServer"
-const uuidv4 = require('uuid/v4');
-
+import { ILastBlock, IMinedBlocks, IMinerCluster, IMinerReward, IPoolSumary, IWorkerCluster } from "./collector"
+import { IWorker, parseKey } from "./stratumServer"
 const logger = getLogger("MongoServer")
+
+const MONGO_BLACKLIST = "Blacklist"
+const MONGO_PAY_WAGES = "PayWages"
+const MONGO_REWARD_BASE = "RewardBase"
+const MONGO_WORKERS = "Workers"
+const MONGO_MINERS = "Miners"
+const MONGO_LAST_BLOCK = "LastBlock"
+const MONGO_POOL_SUMMARY = "PoolSummary"
+const MONGO_DISCONNECTIONS = "Disconnections"
+const MONGO_MINED_BLOCKS = "MinedBlocks"
 export class MongoServer {
-    public static readonly isReal = true
+    public static readonly isReal = false
     public static readonly debugRabbit = false
-
     public static readonly timeoutPayWages = 30000
-    public static readonly timeoutUpdateBlockStatus = 1800000
     public static readonly confirmations = 12
-    private url: string = "mongodb://localhost:27017"
-
-    private dbName = "freehycon"
+    public db: Db
+    private url: string
     private client: MongoClient
-    private db: Db
+    private dbName = "freehycon"
 
-    public key: string = ""
     constructor() {
-        this.key = uuidv4();
-        logger.info(`MongoDB UniqueID ${this.key}`)
-        if (MongoServer.isReal) {
-            this.url = "mongodb://172.31.20.102:27017"
-        }
+        this.url = (!MongoServer.isReal) ? "mongodb://localhost:27017" : "mongodb://172.31.20.102:27017"
         this.init()
     }
     public async init() {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
     }
-    public async addMinedBlock(block: IMinedBlocks) {
-        const collection = this.db.collection(`MinedBlocks`)
-        await collection.insertOne(block)
+    public async findWorker(key: string): Promise<IWorker> {
+        const collection = this.db.collection(MONGO_WORKERS)
+        const rows = await collection.find({ _id: key }).limit(1).toArray()
+        let worker: IWorker
+        if (rows.length === 1) { worker = convertToIWorker(rows[0]) }
+        return worker
     }
-    public async addSummary(summary: IPoolSumary) {
-        const collection = this.db.collection(`PoolSummary`)
+    public async offWorker(key: string) {
+        const [ip, address, workerId] = parseKey(key)
+        let collection = this.db.collection(MONGO_WORKERS)
+        await collection.update({ _id: key }, { $set: { alive: false } })
+        collection = this.db.collection(MONGO_DISCONNECTIONS)
+        await collection.insertOne({
+            address,
+            timestamp: Date.now(),
+            workerId,
+        })
+    }
+    public async updateWorkers(workers: IWorkerCluster[]) {
+        if (workers.length < 1) { return }
+        const collection = this.db.collection(MONGO_WORKERS)
+        for (const worker of workers) {
+            await collection.update({ _id: worker._id }, worker, { upsert: true })
+        }
+    }
+    public async resetWorkers() {
+        const collection = this.db.collection(MONGO_WORKERS)
+        collection.find().forEach((doc) => {
+            if (doc.alive === false) {
+                collection.remove({ _id: doc._id })
+            } else {
+                collection.update({ _id: doc._id }, { $set: { hashshare: 0 } })
+            }
+        })
+    }
+    public async getWorkers(): Promise<IWorkerCluster[]> {
+        const collection = this.db.collection(MONGO_WORKERS)
+        const rows = await collection.find().toArray()
+        return rows
+    }
+    public async updateMiners(miners: IMinerCluster[]) {
+        if (miners.length < 1) { return }
+        const collection = this.db.collection(MONGO_MINERS)
+        await collection.remove({})
+        await collection.insertMany(miners)
+    }
+    public async updateSummary(summary: IPoolSumary) {
+        const collection = this.db.collection(MONGO_POOL_SUMMARY)
         await collection.remove({})
         await collection.insertOne(summary)
     }
-    public async addMiners(miners: IMiner[]) {
-        if (this.db === undefined) { return }
-        if (miners.length > 0) {
-            const collection = this.db.collection(`Miners`)
-            await collection.remove({})
-            await collection.insertMany(miners)
-        }
+    public async updateRewardBase(rewardBase: IMinerReward[]) {
+        if (rewardBase.length < 1) { return }
+        const collection = this.db.collection(MONGO_REWARD_BASE)
+        await collection.remove({})
+        await collection.insertMany(rewardBase)
     }
-    public async addWorkers(workers: IWorkMan[]) {
-        if (workers.length > 0) {
-            const collection = this.db.collection(`Workers`)
-            await collection.remove({})
-            await collection.insertMany(workers)
-        }
-    }
-    public async loadWorkers() {
-        const returnRows: any[] = []
-        if (this.db === undefined) { return returnRows }
-        // should read Workers , otherwise loading breaks
-        const collection = this.db.collection(`Workers`)
+    public async getRewardBase(): Promise<IMinerReward[]> {
+        const collection = this.db.collection(MONGO_REWARD_BASE)
         const rows = await collection.find().toArray()
-        for (const one of rows) { returnRows.push(one) }
-        return returnRows
+        return rows
     }
-    public async addPayWages(wageInfo: any) {
-        const info = this.db.collection(`PayWages`)
-        const rows = await info.find({ blockHash: wageInfo.blockHash }).limit(1).toArray()
-        if (rows.length > 0)
-            return
-
-        await info.insertOne({
-            blockHash: wageInfo.blockHash,
-            rewardBase: wageInfo.rewardBase,
-        })
+    public async addMinedBlock(block: IMinedBlocks) {
+        const collection = this.db.collection(MONGO_MINED_BLOCKS)
+        await collection.insertOne(block)
+    }
+    public async addPayWage(payment: any) {
+        const collection = this.db.collection(MONGO_PAY_WAGES)
+        const rows = await collection.find({ blockHash: payment.blockHash }).toArray()
+        if (rows.length > 0) { return }
+        await collection.insertOne(payment)
     }
     public async getPayWages() {
-        const returnRows: any[] = []
-        if (this.db === undefined) { return returnRows }
-        const collection = this.db.collection(`PayWages`)
-        const rows = await collection.find({}).limit(100).toArray()
-        for (const one of rows) { returnRows.push(one) }
-        return returnRows
+        const collection = this.db.collection(MONGO_PAY_WAGES)
+        const rows = await collection.find().toArray()
+        return rows
     }
-    public async deletePayWages(payId: string) {
-        const collection = this.db.collection(`PayWages`)
+    public async deletePayWage(payId: string) {
+        const collection = this.db.collection(MONGO_PAY_WAGES)
         collection.deleteOne({ _id: payId })
     }
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
-        const collection = this.db.collection(`MinedBlocks`)
-        await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } }, { upsert: false })
+        const collection = this.db.collection(MONGO_MINED_BLOCKS)
+        await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } })
     }
-    public async updateLastBlock(block: { height: number, blockHash: string, miner: string, ago: string }) {
-        const collection = this.db.collection(`LastBlock`)
+    public async updateLastBlock(block: ILastBlock) {
+        const collection = this.db.collection(MONGO_LAST_BLOCK)
         await collection.remove({})
         await collection.insertOne(block)
     }
-    public async getMinedBlocks(): Promise<any[]> {
-        const collection = this.db.collection(`MinedBlocks`)
-        const rows = await collection.find({}).limit(100).toArray()
+    public async getBlacklist() {
+        const collection = this.db.collection(MONGO_BLACKLIST)
+        const rows = await collection.find().toArray()
         return rows
     }
-    public async getBlacklist(): Promise<any[]> {
-        const collection = this.db.collection(`Blacklist`)
-        const rows = await collection.find({}).toArray()
-        return rows
+}
+function convertToIWorker(worker: IWorkerCluster): IWorker {
+    const converted: IWorker = {
+        address: worker.address,
+        career: 0,
+        client: undefined,
+        fee: worker.fee,
+        hashrate: 0,
+        hashshare: worker.hashshare,
+        inspector: undefined,
+        invalid: 0,
+        ip: worker.ip,
+        status: undefined,
+        tick: Date.now(),
+        tickLogin: Date.now() - worker.elapsed,
+        workerId: worker.workerId,
     }
-    public async addDisconnections(disconnInfo: { address: string, workerId: string, timeStamp: number }) {
-        if (disconnInfo === undefined) { return }
-        const collection = this.db.collection(`Disconnections`)
-        await collection.insertOne(disconnInfo)
-    }
-    public async removeClusterAllWorkers() {
-        const collection = this.db.collection(`ClusterWorkers`)
-        await collection.remove({})
-    }
-    public async getClusterAllWorkers(): Promise<any[]> {
-        const collection = this.db.collection(`ClusterWorkers`)
-        const rows = await collection.find({}).toArray()
-        return rows
-    }
-    public async updateClusterWorkers(mw: IWorker[]) {
-        if (this.db === undefined) { return }
-        if (mw.length > 0) {
-            let newWorkers: any[] = []
-            for (let w of mw) {
-                let newone: any = {
-                    key: this.key,
-                    socket: w.socket.id,
-                    workerId: w.workerId,
-                    address: w.address,
-                    fee: w.fee,
-                    hashrate: w.hashrate,
-                    hashshare: w.hashshare,
-                    status: w.status,
-                    career: w.career,
-                    tick: w.tick,
-                    tickLogin: w.tickLogin
-                }
-                newWorkers.push(newone)
-
-            }
-            const collection = this.db.collection(`ClusterWorkers`)
-            await collection.remove({ key: this.key })
-            await collection.insertMany(newWorkers)
-        }
-
-    }
-    public async getDataCenter(key: string): Promise<any> {
-        const collection = this.db.collection(`DataCenter`)
-        const found = await collection.findOne({ key: key })
-        if (found)
-            return found.value
-        else
-            return null
-    }
-    public async putDataCenter(key: string, value: any) {
-        const collection = this.db.collection(`DataCenter`)
-        await collection.update({ key: "time" }, { key: "time", value: value }, { upsert: true })
-
-    }
+    return converted
 }

@@ -9,10 +9,11 @@
         "assets": "mnemonic/*"
     },
     "scripts": {
-        "stratum": "cp -f src/stratum_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
+        "stratum": "cp -f src/blank_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
         "hycon": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0",
         "banker": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --banker",
-        "seed": "./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=freehycon --bootstrap",
+        "collector": "cp -f src/blank_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/collector.ts --collector",
+        "seed": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=crazyK --bootstrap",
         "protogen": "pbjs -t static-module -w commonjs -o src/serialization/proto.js proto/main.proto &&  pbts -o src/serialization/proto.d.ts src/serialization/proto.js && ./src/serialization/trim_null.sh",
         "debug": "./node_modules/.bin/ts-node --inspect=9231 --inspect-brk src/main.ts  --port=8148 --str_port=9081 --cpuMiners=3 --api --api_port=2442 --networkid=`git rev-parse HEAD` --bootstrap",
         "debugTests": "./node_modules/.bin/ts-node  --inspect=9230 --inspect-brk  test/runner.ts",
@@ -71,7 +72,7 @@
         "source-map-loader": "^0.2.3",
         "style-loader": "^0.19.0",
         "ts-node": "4.0.1",
-        "tslint": "^5.10.0",
+        "tslint": "^5.11.0",
         "typescript": "^2.9.1",
         "webpack": "^4.10.2",
         "webpack-cli": "^2.1.5"
@@ -100,7 +101,7 @@
         "log4js": "git+https://github.com/Team-Hycon/log4js-node.git",
         "log4js-protractor-appender": "^1.1.2",
         "merkle-lib": "^2.0.10",
-        "mongodb": "^3.1.1",
+        "mongodb": "^3.1.6",
         "nat-upnp": "^1.1.1",
         "netmask": "^1.0.6",
         "node-cryptonight": "git://github.com/dev-jbam/node-cryptonight.git",
@@ -120,6 +121,7 @@
         "sqlite3-transactions": "0.0.5",
         "stratum": "git://github.com/dev-jbam/node-stratum.git",
         "tsconfig": "^7.0.0",
+        "tslint-server": "^0.1.0",
         "typeorm": "^0.2.7",
         "uuid": "^3.3.2",
         "wallet.ts": "^0.2.5"

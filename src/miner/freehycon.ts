@@ -1,9 +1,8 @@
+import cluster = require("cluster")
 import { configure, getLogger } from "log4js"
-import { StratumServer } from "./stratumServer"
+import os = require("os")
 import { MongoServer } from "./mongoServer"
-import cluster = require('cluster');
-import os = require('os');
-import commandLineArgs = require("command-line-args")
+import { StratumServer } from "./stratumServer"
 const logger = getLogger("FreeHycon")
 
 configure({
@@ -26,22 +25,20 @@ configure({
 async function runClusterStratum(isMaster: boolean) {
     if (isMaster) {
         const mongo = new MongoServer()
-    }
-    else {
+    } else {
         const mongo = new MongoServer()
         const stratumServer = new StratumServer(mongo, 9081)
     }
 }
 function run() {
     if (cluster.isMaster) {
-        console.log(`Master created`)
+        logger.info(`Master created`)
         runClusterStratum(true)
         os.cpus().forEach(() => {
             cluster.fork()
         })
-    }
-    else {
-        console.log(`Worker Created ${cluster.worker.id}`)
+    } else {
+        logger.info(`Worker Created ${cluster.worker.id}`)
         runClusterStratum(false)
     }
 }

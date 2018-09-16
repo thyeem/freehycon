@@ -50,6 +50,7 @@ const optionDefinitions = [
     { name: "writing", alias: "w", type: Boolean },
     { name: "stratum", alias: "S", type: Boolean },
     { name: "banker", alias: "b", type: Boolean },
+    { name: "collector", alias: "C", type: Boolean },
 ]
 
 import conf = require("./settings")
@@ -106,7 +107,6 @@ logger.info(`Port=${globalOptions.port}`)
 logger.info(`Stratum Port=${globalOptions.str_port}`)
 
 import * as fs from "fs-extra"
-import { runFreehycon } from "./miner/freehycon"
 import { Server } from "./server"
 import { Wallet } from "./wallet/wallet"
 // tslint:disable-next-line:no-var-requires
@@ -139,15 +139,12 @@ export async function setMiner(address: string) {
 
 async function main() {
     let configChange = false
-
     if (globalOptions.os === undefined || globalOptions.os === "") {
         globalOptions.os = conf.os
     }
-
     if (globalOptions.minerAddress === undefined || globalOptions.minerAddress === "") {
         globalOptions.minerAddress = conf.minerAddress
     }
-
     if (globalOptions.minerAddress === undefined || globalOptions.minerAddress === "") {
         try {
             globalOptions.minerAddress = conf.minerAddress = await Wallet.getAddress("mining")
@@ -156,17 +153,14 @@ async function main() {
 
         }
     }
-
     if (conf.txPoolMaxAddresses === undefined) {
         conf.txPoolMaxAddresses = 36000
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
-
     if (conf.txPoolMaxTxsPerAddress === undefined) {
         conf.txPoolMaxTxsPerAddress = 64
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
-
     if (globalOptions.cpuMiners > 0) {
         if (globalOptions.minerAddress === undefined || globalOptions.minerAddress === "") {
             try {
@@ -177,11 +171,9 @@ async function main() {
             }
         }
     }
-
     if (configChange) {
         await fs.writeFileSync("./data/config.json", JSON.stringify(conf))
     }
-
     if (globalOptions.stratum !== undefined) { return }
     if (globalOptions.lite === undefined || globalOptions.lite) {
         const hycon = new Server()

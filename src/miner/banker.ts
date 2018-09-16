@@ -4,7 +4,7 @@ import { Address } from "../common/address"
 import { SignedTx } from "../common/txSigned"
 import { Hash } from "../util/hash"
 import { Wallet } from "../wallet/wallet"
-import { IMinerReward } from "./dataCenter"
+import { IMinerReward } from "./collector"
 import { MinerServer } from "./minerServer"
 
 interface ISendTx {
@@ -37,17 +37,17 @@ export class Banker {
         this.carryover = 0
         this.banker = Wallet.generate(bankerRecover)
     }
-    public async distributeIncome(income: number, hash: string, height: number, rewardBase: Map<string, IMinerReward>) {
+    public async distributeIncome(income: number, hash: string, height: number, payments: IMinerReward[]) {
         try {
             logger.error(`distribution (block #${height}: ${hash}) started`)
             income += this.carryover
             let sumFee = 0
-            for (const [address, miner] of rewardBase) {
-                const amount = income * miner.reward - this.txFee
+            for (const pay of payments) {
+                const amount = income * pay.reward - this.txFee
                 if (amount <= 0) { continue }
-                const fee = income * miner.fee
+                const fee = income * pay.fee
                 sumFee += fee
-                const tx = await this.makeTx(address, amount, this.txFee)
+                const tx = await this.makeTx(pay._id, amount, this.txFee)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
@@ -58,7 +58,7 @@ export class Banker {
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
-            if (rewardBase.size < 1) {
+            if (payments.length < 1) {
                 this.carryover += 240
                 logger.error(`carryover: ${this.carryover} HYC`)
             } else {

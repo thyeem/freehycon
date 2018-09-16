@@ -5,10 +5,10 @@ const logger = getLogger("RabbitMQ")
 export class RabbitmqServer {
   private conn: Connection = undefined
   private channel: Channel = undefined
-  private ip: string = "amqp://localhost"
-  private queueName: string = "hello"
+  private queueName: string
+  private ip: string
   public constructor(queueName: string) {
-    if (MongoServer.isReal) { this.ip = "amqp://freehycon:freehycon@172.31.20.102" }
+    this.ip = (!MongoServer.isReal) ? "amqp://localhost" : "amqp://freehycon:freehycon@172.31.20.102"
     if (queueName !== undefined) { this.queueName = queueName }
   }
   public async initialize() {

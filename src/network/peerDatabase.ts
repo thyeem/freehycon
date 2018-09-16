@@ -140,7 +140,7 @@ export class PeerDatabase implements IPeerDatabase {
     }
     public async getRandomPeer(): Promise<proto.IPeer> {
         try {
-            let sql: string = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
+            const sql: string = `SELECT * FROM peer_model WHERE active = 0 ORDER BY RANDOM() DESC LIMIT 1`
             return this.dbLock.critical(async () => {
                 const rows = await this.connection.manager.query(sql)
                 const res = PeerDatabase.model2ipeer(rows[0])
