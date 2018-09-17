@@ -1,5 +1,6 @@
 import { getLogger } from "log4js"
 import { globalOptions } from "../main"
+import { FC } from "./freehycon"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("Collector")
 export interface IMinerCluster {
@@ -32,7 +33,6 @@ export interface IMinerReward {
 }
 export interface IMinedBlocks {
     _id: string
-    hash: string
     mainchain: boolean
     prevHash: string
     timestamp: number
@@ -60,7 +60,7 @@ export class Collector {
         this.mongoServer = mongoServer
         this.miners = new Map<string, IMinerCluster>()
         this.rewardBase = new Map<string, IMinerReward>()
-        setTimeout(() => { this.pollingCollector() }, 3000)
+        setTimeout(() => { this.pollingCollector() }, 2000)
     }
 
     private reset() {
@@ -120,6 +120,11 @@ export class Collector {
         this.reset()
         await this.collectMiners()
         await this.collectPoolSummary()
+
+        if (this.poolHashshare <= 0) {
+            setTimeout(() => { this.pollingCollector() }, FC.INTEVAL_COLLECT_POOL_DATA)
+            return
+        }
         for (const [_, miner] of this.miners) {
             miner.hashshare /= this.poolHashshare
             miner.reward /= this.poolHashshare
@@ -137,11 +142,8 @@ export class Collector {
         this.mongoServer.updateMiners(miners)
         this.mongoServer.updateRewardBase(rewardBase)
         this.mongoServer.updateSummary(summary)
-        logger.info(`Done: Workers(${this.workerCount}) Miners(${miners.length}) PoolHashrate(${(0.001 * this.poolHashrate).toFixed(2)} kH/s)`)
-
-        setTimeout(() => {
-            this.pollingCollector()
-        }, 2000)
+        logger.info(`workers(${this.workerCount})  miners(${miners.length})  pool hashrate: ${(0.001 * this.poolHashrate).toFixed(2)} kH/s`)
+        setTimeout(() => { this.pollingCollector() }, FC.INTEVAL_COLLECT_POOL_DATA)
     }
 }
 export function formatTime(second: number) {

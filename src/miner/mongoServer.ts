@@ -46,7 +46,7 @@ export class MongoServer {
     }
     public async resetWorkers() {
         const collection = this.db.collection(FC.MONGO_WORKERS)
-        collection.find().forEach((doc) => {
+        await collection.find().forEach((doc) => {
             if (doc.alive === false) {
                 collection.remove({ _id: doc._id })
             } else {
@@ -98,11 +98,11 @@ export class MongoServer {
     }
     public async deletePayWage(payId: string) {
         const collection = this.db.collection(FC.MONGO_PAY_WAGES)
-        collection.deleteOne({ _id: payId })
+        await collection.deleteOne({ _id: payId })
     }
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
         const collection = this.db.collection(FC.MONGO_MINED_BLOCKS)
-        await collection.update({ hash: blockhash }, { $set: { mainchain: isMainchain } })
+        await collection.update({ _id: blockhash }, { $set: { mainchain: isMainchain } })
     }
     public async updateLastBlock(block: ILastBlock) {
         const collection = this.db.collection(FC.MONGO_LAST_BLOCK)

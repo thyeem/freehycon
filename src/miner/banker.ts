@@ -16,15 +16,8 @@ interface ISendTx {
     nonce: number
 }
 const logger = getLogger("Banker")
-// H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP
-const bankerRecover = {
-    hint: "freehycon",
-    language: "english",
-    mnemonic: FC.BANKER_WALLET_MNEMONIC,
-    name: "freehycon",
-    passphrase: FC.BANKER_WALLET_PASSPHRASE,
-}
 export class Banker {
+    // Freehycon Wallet: H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP
     private carryover: number
     private banker: Wallet
     private minerServer: MinerServer
@@ -32,7 +25,13 @@ export class Banker {
     constructor(minerServer: MinerServer) {
         this.minerServer = minerServer
         this.carryover = 0
-        this.banker = Wallet.generate(bankerRecover)
+        this.banker = Wallet.generate({
+            hint: "freehycon",
+            language: "english",
+            mnemonic: FC.BANKER_WALLET_MNEMONIC,
+            name: "freehycon",
+            passphrase: FC.BANKER_WALLET_PASSPHRASE,
+        })
     }
     public async distributeIncome(income: number, hash: string, height: number, payments: IMinerReward[]) {
         try {

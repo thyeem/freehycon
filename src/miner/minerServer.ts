@@ -97,7 +97,6 @@ export class MinerServer {
         const height = await this.consensus.getBlockHeight(hash)
         const block: IMinedBlocks = {
             _id: hash.toString(),
-            hash: hash.toString(),
             height,
             mainchain: status === BlockStatus.MainChain,
             prevHash: found.block.header.previousHash[0].toString(),

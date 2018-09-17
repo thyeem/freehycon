@@ -15,12 +15,13 @@ export const FC = {
     BANKER_WALLET_FREEMINER: "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr",
     BANKER_WALLET_MNEMONIC: "erase slice behave detail render spell spoil canvas pluck great panel fashion",
     BANKER_WALLET_PASSPHRASE: "Ga,b9jG;8aN97JiM",
-    DEBUG_DIFFICULTY_INTERN: 0.1,
+    DEBUG_DIFFICULTY_INTERN: 0.005,
     DEBUG_NUM_INTERN_PROBLEMS: 5,
     DEBUG_NUM_INTERVIEW_PROBLEMS: 5,
     DEBUG_PERIOD_DAYOFF: 5,
-    INITIAL_HASHRATE: 20,
+    INITIAL_HASHRATE: 400,
     INTEVAL_CANDIDATE_BLOCK: 10000,
+    INTEVAL_COLLECT_POOL_DATA: 2000,
     INTEVAL_PATROL_BLACKLIST: 30000,
     INTEVAL_PAY_WAGES: 30000,
     INTEVAL_STRATUM_RELEASE_DATA: 10000,
@@ -52,12 +53,12 @@ export const FC = {
     TRHESHOLD_BLACKLIST: 30,
 }
 
-async function runClusterStratum(isMaster: boolean) {
+async function runClusterStratum(isMaster: boolean, id: string = "") {
     if (isMaster) {
         const mongo = new MongoServer()
     } else {
         const mongo = new MongoServer()
-        const stratumServer = new StratumServer(mongo, 9081)
+        const stratumServer = new StratumServer(mongo, id, 9081)
     }
 }
 function run() {
@@ -69,7 +70,10 @@ function run() {
         })
     } else {
         logger.info(`Worker created ${cluster.worker.id}`)
-        runClusterStratum(false)
+        runClusterStratum(false, padNum(cluster.worker.id, 3))
     }
+}
+function padNum(num: number, length: number): string {
+    return ("0".repeat(length - 1) + num).slice(-length)
 }
 if (globalOptions.stratum) { run() }

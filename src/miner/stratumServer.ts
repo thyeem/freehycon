@@ -63,6 +63,7 @@ export class StratumServer {
     private numInterveiwProblems = FC.NUM_INTERVIEW_PROBLEMS
     private difficultyIntern = 1. / (FC.INITIAL_HASHRATE * 0.001 * FC.MEANTIME_INTERN / Math.LN2)
     private periodDayoff = FC.PERIOD_DAYOFF
+    private stratumId: string
     private jobId: number
     private port: number
     private mongoServer: MongoServer
@@ -73,15 +74,16 @@ export class StratumServer {
     private mapJob: Map<number, IJob>
     private blacklist: Map<string, number>
 
-    constructor(mongoServer: MongoServer, port: number = 9081) {
+    constructor(mongoServer: MongoServer, id: string, port: number = 9081) {
         this.mongoServer = mongoServer
-        this.setupRabbitMQ()
+        this.stratumId = id
         this.port = port
         this.stratum = new LibStratum({ settings: { port: this.port, toobusy: 200 } })
         this.mapJob = new Map<number, IJob>()
         this.mapWorker = new Map<string, IWorker>()
         this.blacklist = new Map<string, number>()
         this.jobId = 0
+        this.setupRabbitMQ()
         if (!FC.MODE_INSERVICE) {
             this.numInternProblems = FC.DEBUG_NUM_INTERN_PROBLEMS
             this.numInterveiwProblems = FC.DEBUG_NUM_INTERVIEW_PROBLEMS
@@ -160,17 +162,18 @@ export class StratumServer {
                     if (this.isInvalidUser(client, address.trim())) {
                         this.giveWarnings(client)
                     } else {
-                        logger.warn(`Authorized worker: ${address} | IP address: ${remoteIP}`)
                         const validAddress = checkAddress(address)
                         const validWorkerId = checkWorkerId(client.id, workerId)
                         const key = genKey(remoteIP, validAddress, validWorkerId)
                         authorized = true
                         worker = await this.mongoServer.findWorker(key)
+                        const status = (worker === undefined) ? "new" : "old"
                         if (worker === undefined) {
                             worker = this.welcomeNewWorker(client, key)
                         } else {
                             this.updateOldWorker(client, worker)
                         }
+                        logger.warn(`Authorized ${status} worker: ${address} | IP address: ${remoteIP}`)
                         this.putWorkOnInspector(worker)
                     }
                     deferred.resolve([authorized])
@@ -407,7 +410,8 @@ export class StratumServer {
     }
     private async newRound() {
         const rewardBase = await this.mongoServer.getRewardBase()
-        this.mongoServer.resetWorkers()
+        await this.mongoServer.resetWorkers()
+        for (const [_, worker] of this.mapWorker) { worker.hashshare = 0. }
         return rewardBase
     }
     private async patrolBlacklist() {
@@ -423,6 +427,10 @@ export class StratumServer {
         }, FC.INTEVAL_PATROL_BLACKLIST)
     }
     private async releaseData() {
+        let workerAll = 0
+        let workerOnWork = 0
+        let hashrateAll = 0
+        let hashrateOnWork = 0
         const workers: IWorkerCluster[] = []
         for (const w of this.mapWorker.values()) {
             const elapsed = Date.now() - w.tickLogin
@@ -440,11 +448,16 @@ export class StratumServer {
                 workerId: w.workerId,
             }
             workers.push(worker)
+            workerAll++
+            hashrateAll += w.hashrate
+            if (w.status === WorkerStatus.Working) {
+                workerOnWork++
+                hashrateOnWork += w.hashrate
+            }
         }
+        if (workerAll > 0) { logger.warn(`stratum ${this.stratumId} | worker(${workerOnWork}/${workerAll}): ${(0.001 * hashrateOnWork).toFixed(2)}/${(0.001 * hashrateAll).toFixed(2)} kH/s`) }
         this.mongoServer.updateWorkers(workers)
-        setTimeout(() => {
-            this.releaseData()
-        }, FC.INTEVAL_STRATUM_RELEASE_DATA)
+        setTimeout(() => { this.releaseData() }, FC.INTEVAL_STRATUM_RELEASE_DATA)
     }
 }
 
