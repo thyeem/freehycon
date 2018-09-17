@@ -18,7 +18,6 @@ import { IPeerDatabase } from "../ipeerDatabase"
 import { BasePeer } from "./basePeer"
 import { BYTES_OVERHEAD, HASH_SIZE, MAX_BLOCKS_PER_PACKET, MAX_HEADERS_PER_PACKET, MAX_PACKET_SIZE, MAX_TX_SIZE, MAX_TXS_PER_BLOCK, REPEATED_OVERHEAD } from "./networkConstants"
 import { RabbitNetwork } from "./rabbitNetwork"
-import delay from "delay"
 const logger = getLogger("NetPeer")
 
 const DIFFICULTY_TOLERANCE = 0.05
@@ -26,8 +25,8 @@ const BROADCAST_LIMIT = 10
 
 export interface IBlockTxs { hash: Hash, txs: SignedTx[] }
 export class RabbitPeer extends BasePeer implements IPeer {
-    public static seenBlocksSet: Set<String> = new Set<String>()
-    public static seenBlocks: String[] = []
+    public static seenBlocksSet: Set<string> = new Set<string>()
+    public static seenBlocks: string[] = []
     public listenPort: number
     public guid: string
     private consensus: IConsensus

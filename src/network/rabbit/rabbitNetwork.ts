@@ -200,14 +200,14 @@ export class RabbitNetwork implements INetwork {
         return true
     }
 
-    private async connectSeedLoop() {
+    public async connectSeedLoop() {
         this.connectSeeds().catch(() => undefined)
         setTimeout(() => {
             this.connectSeedLoop()
         }, 30000)
 
     }
-    private async connectLoop() {
+    public async connectLoop() {
         this.connectToPeer().catch(() => undefined)
         setTimeout(() => this.connectLoop(), 1000)
     }
@@ -259,8 +259,7 @@ export class RabbitNetwork implements INetwork {
                         const newPeer = await this.newConnection(socket, save)
                         ipeer.host = socket.remoteAddress
                         resolve(newPeer)
-                    }
-                    catch (e) {
+                    } catch (e) {
                         reject(e)
                     }
                 })
