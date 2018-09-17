@@ -14,6 +14,7 @@ import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { formatTime, ILastBlock, IMinedBlocks, IMinerReward } from "./collector"
+import { FC } from "./freehycon"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
 const logger = getLogger("Miner")
@@ -60,7 +61,7 @@ export class MinerServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork")
         await this.queueSubmitWork.initialize()
         this.queueSubmitWork.receive((msg: any) => {
-            if (MongoServer.debugRabbit) {
+            if (FC.MODE_RABBITMQ_DEBUG) {
                 logger.info(" [x] Received Submit Block %s", msg.content.toString())
             }
             const one = JSON.parse(msg.content.toString())
@@ -71,11 +72,11 @@ export class MinerServer {
     }
     public async pollingPayWages() {
         this.payWages()
-        setTimeout(() => { this.pollingPayWages() }, MongoServer.timeoutPayWages)
+        setTimeout(() => { this.pollingPayWages() }, FC.INTEVAL_PAY_WAGES)
     }
     public async pollingUpdateLastBlock() {
         this.updateLastBlock()
-        setTimeout(() => { this.pollingUpdateLastBlock() }, 5000)
+        setTimeout(() => { this.pollingUpdateLastBlock() }, FC.INTEVAL_UPDATE_LAST_BLOCK)
     }
     public async updateLastBlock() {
         const tip = this.consensus.getBlocksTip()
@@ -109,12 +110,12 @@ export class MinerServer {
         if (pays.length > 0) {
             for (const pay of pays) {
                 const rewardBase: IMinerReward[] = pay.rewardBase
-                const hash = Hash.decode(pay.blockHash)
+                const hash = Hash.decode(pay._id)
                 const status = await this.consensus.getBlockStatus(hash)
                 const height = await this.consensus.getBlockHeight(hash)
                 const tip = this.consensus.getBlocksTip()
                 const isMainchain = status === BlockStatus.MainChain
-                if (height + MongoServer.confirmations < tip.height) {
+                if (height + FC.NUM_TXS_CONFIRMATIONS < tip.height) {
                     if (isMainchain) {
                         this.banker.distributeIncome(240, hash.toString(), height, rewardBase)
                         this.mongoServer.deletePayWage(pay._id)
@@ -136,15 +137,13 @@ export class MinerServer {
     public getMinerInfo(): { hashRate: number, address: string, cpuCount: number } {
         return { hashRate: 0, address: globalOptions.minerAddress, cpuCount: 0 }
     }
-    public setMinerCount(count: number) {
-        globalOptions.cpuMiners = count
-    }
+    public setMinerCount(count: number) { globalOptions.cpuMiners = count }
     private candidate(previousDBBlock: DBBlock, previousHash: Hash): void {
         const miner: Address = new Address(globalOptions.minerAddress)
         logger.info(`New Candidate Block Difficulty: 0x${previousDBBlock.nextDifficulty.toExponential()} Target: ${DifficultyAdjuster.getTarget(previousDBBlock.nextDifficulty, 32).toString("hex")}`)
         clearInterval(this.intervalId)
         this.createCandidate(previousDBBlock, previousHash, miner)
-        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), 10000)
+        this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), FC.INTEVAL_CANDIDATE_BLOCK)
     }
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
         const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
@@ -162,7 +161,7 @@ export class MinerServer {
             }),
             txs: validTxs,
         })
-        if (!globalOptions.banker) {
+        if (!globalOptions.banker && this.queuePutWork !== undefined) {
             const prehash = block.header.preHash()
             const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
             this.queuePutWork.send(JSON.stringify(putWorkData))

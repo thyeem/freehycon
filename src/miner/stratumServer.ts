@@ -8,6 +8,7 @@ import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { formatTime, IMinerReward, IWorkerCluster } from "./collector"
+import { FC } from "./freehycon"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
@@ -59,21 +60,10 @@ const fakeBlock = new Block({
     txs: [],
 })
 export class StratumServer {
-    public static FREQ_DAY_OFF = 100
-    private NUM_INTERN_PROBLEMS = 20
-    private NUM_INTERVIEW_PROBLEMS = 20
-    private readonly INITIAL_HASHRATE = 200
-    private readonly NUM_JOB_BUFFER = 10
-    private readonly ALPHA_INTERN = 0.3
-    private readonly MEANTIME_INTERN = 20000
-    private DIFFCULTY_INTERN = 1. / (this.INITIAL_HASHRATE * 0.001 * this.MEANTIME_INTERN / Math.LN2)
-    private readonly ALPHA_INTERVIEW = 0.1
-    private readonly MEANTIME_INTERVIEW = 20000
-    private readonly NUM_DAYOFF_PROBLEMS = 1
-    private readonly THRESHOLD_BLACKLIST = 30
-    private readonly THRESHOLD_MIN_HASHRATE = 30
-    private readonly INTEVAL_PATROL_BLACKLIST = 300000
-    private readonly INTEVAL_RELEASE_DATA = 10000
+    private numInternProblems = FC.NUM_INTERN_PROBLEMS
+    private numInterveiwProblems = FC.NUM_INTERVIEW_PROBLEMS
+    private difficultyIntern = 1. / (FC.INITIAL_HASHRATE * 0.001 * FC.MEANTIME_INTERN / Math.LN2)
+    private periodDayoff = FC.PERIOD_DAYOFF
     private jobId: number
     private port: number
     private mongoServer: MongoServer
@@ -83,15 +73,8 @@ export class StratumServer {
     private mapWorker: Map<string, IWorker>
     private mapJob: Map<number, IJob>
     private blacklist: Map<string, number>
-    private ongoingPrehash: string
 
     constructor(mongoServer: MongoServer, port: number = 9081) {
-        if (!MongoServer.isReal) {
-            this.NUM_INTERN_PROBLEMS = 1
-            this.NUM_INTERVIEW_PROBLEMS = 1
-            this.DIFFCULTY_INTERN = 0.05
-            StratumServer.FREQ_DAY_OFF = 10
-        }
         this.mongoServer = mongoServer
         this.setupRabbitMQ()
         this.port = port
@@ -100,11 +83,17 @@ export class StratumServer {
         this.mapWorker = new Map<string, IWorker>()
         this.blacklist = new Map<string, number>()
         this.jobId = 0
+        if (!FC.MODE_INSERVICE) {
+            this.numInternProblems = FC.DEBUG_NUM_INTERN_PROBLEMS
+            this.numInterveiwProblems = FC.DEBUG_NUM_INTERVIEW_PROBLEMS
+            this.difficultyIntern = FC.DEBUG_DIFFICULTY_INTERN
+            this.periodDayoff = FC.DEBUG_PERIOD_DAYOFF
+        }
         setTimeout(async () => {
-            // await this.patrolBlacklist()
+            await this.patrolBlacklist()
             this.init()
             this.releaseData()
-        }, 2000)
+        }, 1000)
     }
 
     public async setupRabbitMQ() {
@@ -113,7 +102,7 @@ export class StratumServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork")
         await this.queueSubmitWork.initialize()
         await this.queuePutWork.receive((msg: any) => {
-            if (MongoServer.debugRabbit) {
+            if (FC.MODE_RABBITMQ_DEBUG) {
                 logger.info(" [x] Received PutWork %s", msg.content.toString())
             }
             const one = JSON.parse(msg.content.toString())
@@ -198,8 +187,7 @@ export class StratumServer {
                         const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
                         const nick = (isWorking) ? "" : getNick(worker)
                         if (job === undefined || job.solved === true) {
-                            // deferred.resolve([true])
-                            break
+                            deferred.resolve([true]); break
                         }
                         logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
                         if (isWorking) {
@@ -239,7 +227,7 @@ export class StratumServer {
             worker.inspector.mapJob.delete(id - worker.inspector.numJobBuffer)
         } else {
             this.jobId = ++id
-            this.mapJob.delete(id - this.NUM_JOB_BUFFER)
+            this.mapJob.delete(id - FC.NUM_JOB_BUFFER)
         }
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
         const difficulty = (worker !== undefined) ? worker.inspector.difficulty : block.header.difficulty
@@ -300,7 +288,7 @@ export class StratumServer {
                 this.stop()
                 const rewardBase: IMinerReward[] = await this.newRound()
                 const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.addPayWage({ blockHash: blockHash.toString(), rewardBase })
+                this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
             }
             return true
         } catch (e) {
@@ -311,7 +299,7 @@ export class StratumServer {
         worker.inspector.adjustDifficulty()
         this.measureWorker(worker)
         if (this.checkWorkingDay(worker)) {
-            if (worker.hashrate < this.THRESHOLD_MIN_HASHRATE) {
+            if (FC.MODE_INSERVICE && worker.hashrate < FC.THRESHOLD_MIN_HASHRATE) {
                 this.giveWarnings(worker.client, 100)
                 return
             }
@@ -339,7 +327,7 @@ export class StratumServer {
             fee: 0.029,
             hashrate: 0,
             hashshare: 0,
-            inspector: new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN),
+            inspector: new WorkerInspector(FC.MEANTIME_INTERN, this.difficultyIntern, FC.ALPHA_INTERN),
             invalid: 0,
             ip,
             status: WorkerStatus.Intern,
@@ -353,7 +341,7 @@ export class StratumServer {
     private updateOldWorker(client: any, worker: IWorker) {
         worker.client = client
         worker.status = WorkerStatus.Intern
-        worker.inspector = new WorkerInspector(this.MEANTIME_INTERN, this.DIFFCULTY_INTERN, this.ALPHA_INTERN)
+        worker.inspector = new WorkerInspector(FC.MEANTIME_INTERN, this.difficultyIntern, FC.ALPHA_INTERN)
         this.mapWorker.set(client.id, worker)
     }
     private banInvalidUsers(client: any) {
@@ -373,10 +361,10 @@ export class StratumServer {
     private isInvalidUser(client: any, address: string = "") {
         const remoteIP = client.socket.remoteAddress
         const worker = this.mapWorker.get(client.id)
-        const byAddress = this.blacklist.get(address) > this.THRESHOLD_BLACKLIST
-        const byScore = this.blacklist.get(remoteIP) > this.THRESHOLD_BLACKLIST
+        const byAddress = this.blacklist.get(address) > FC.TRHESHOLD_BLACKLIST
+        const byScore = this.blacklist.get(remoteIP) > FC.TRHESHOLD_BLACKLIST
         if (worker !== undefined) {
-            const byWorker = worker.invalid > this.THRESHOLD_BLACKLIST
+            const byWorker = worker.invalid > FC.TRHESHOLD_BLACKLIST
             return byWorker || byScore || byAddress
         } else {
             return byAddress || byScore
@@ -396,7 +384,7 @@ export class StratumServer {
     private checkDayoff(worker: IWorker) {
         if (worker.career > 0x7FFFFFFF) { worker.career = 0 }
         worker.career++
-        if (worker.career % StratumServer.FREQ_DAY_OFF === 0) {
+        if (worker.career % this.periodDayoff === 0) {
             worker.status = WorkerStatus.Dayoff
             return true
         }
@@ -404,13 +392,13 @@ export class StratumServer {
     }
     private checkWorkingDay(worker: IWorker) {
         const isIntern = worker.status === WorkerStatus.Intern
-        const problems = (worker.career !== 0) ? this.NUM_DAYOFF_PROBLEMS : (isIntern) ? this.NUM_INTERN_PROBLEMS : this.NUM_INTERVIEW_PROBLEMS
+        const problems = (worker.career !== 0) ? FC.NUM_DAYOFF_PROBLEMS : (isIntern) ? this.numInternProblems : this.numInterveiwProblems
         if (worker.inspector.submits >= problems) {
             worker.inspector.submits = 0
             if (isIntern) { // move on next step: onInterview
                 worker.status = WorkerStatus.OnInterview
                 const difficulty = worker.inspector.difficulty
-                worker.inspector = new WorkerInspector(this.MEANTIME_INTERVIEW, difficulty, this.ALPHA_INTERVIEW)
+                worker.inspector = new WorkerInspector(FC.MEANTIME_INTERVIEW, difficulty, FC.ALPHA_INTERVIEW)
             } else {
                 worker.status = WorkerStatus.Working
                 return true
@@ -433,7 +421,7 @@ export class StratumServer {
         }
         setTimeout(() => {
             this.patrolBlacklist()
-        }, this.INTEVAL_PATROL_BLACKLIST)
+        }, FC.INTEVAL_PATROL_BLACKLIST)
     }
     private async releaseData() {
         const workers: IWorkerCluster[] = []
@@ -457,7 +445,7 @@ export class StratumServer {
         this.mongoServer.updateWorkers(workers)
         setTimeout(() => {
             this.releaseData()
-        }, this.INTEVAL_RELEASE_DATA)
+        }, FC.INTEVAL_STRATUM_RELEASE_DATA)
     }
 }
 
@@ -474,7 +462,7 @@ function genPrehash(): Uint8Array {
     return new Uint8Array(randomBytes(64))
 }
 function getRandomIndex(): number {
-    return Math.floor(Math.random() * 0xFFFFFF)
+    return Math.floor(Math.random() * 0x7FFFF)
 }
 function checkAddress(address: string) {
     const isAddress = Address.isAddress(address)
@@ -486,8 +474,8 @@ function checkWorkerId(clientId: string, workerId: string) {
     return (workerId === "") ? clientId.slice(0, 12) : workerId.slice(0, 20)
 }
 function getNick(worker: IWorker): string {
-    const round = Math.floor(worker.career / StratumServer.FREQ_DAY_OFF)
-    return worker.address.slice(0, 8) + ":" + worker.client.id.slice(0, 6) + "(" + round + ") | "
+    const years = Math.floor(worker.career / FC.PERIOD_DAYOFF)
+    return worker.address.slice(0, 8) + ":" + worker.client.id.slice(0, 6) + "(" + years + ") | "
 }
 function bufferToHexBE(target: Buffer) {
     const buf = Buffer.from(target.slice(24, 32))

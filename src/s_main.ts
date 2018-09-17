@@ -1,3 +1,24 @@
+import { configure, getLogger } from "log4js"
+import { showHelp } from "./help"
+const logger = getLogger("Main")
+configure({
+    appenders: {
+        console: {
+            type: "log4js-protractor-appender",
+        },
+        fileLogs: {
+            filename: `./logs/${new Date().getFullYear()}-${(new Date().getMonth()) + 1}-${new Date().getDate()}/logFile.log`,
+            keepFileExt: true,
+            maxLogSize: 16777216,
+            pattern: ".yyyy-MM-dd",
+            type: "dateFile",
+        },
+    },
+    categories: {
+        default: { appenders: ["console", "fileLogs"], level: "info" },
+    },
+})
+
 import commandLineArgs = require("command-line-args")
 const optionDefinitions = [
     { name: "api", alias: "a", type: Boolean },
@@ -28,4 +49,5 @@ const optionDefinitions = [
     { name: "banker", alias: "b", type: Boolean },
     { name: "collector", alias: "C", type: Boolean },
 ]
+
 export const globalOptions = commandLineArgs(optionDefinitions)

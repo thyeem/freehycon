@@ -9,11 +9,11 @@
         "assets": "mnemonic/*"
     },
     "scripts": {
-        "stratum": "cp -f src/blank_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
-        "hycon": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0",
-        "banker": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --banker",
-        "collector": "cp -f src/blank_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/collector.ts --collector",
-        "seed": "cp -f src/core_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=crazyK --bootstrap",
+        "stratum": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
+        "hycon": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --bootstrap",
+        "banker": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --banker",
+        "collector": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/collector.ts --collector",
+        "seed": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api_port=2442 --cpuMiners=0 --networkid=freehycon --bootstrap",
         "protogen": "pbjs -t static-module -w commonjs -o src/serialization/proto.js proto/main.proto &&  pbts -o src/serialization/proto.d.ts src/serialization/proto.js && ./src/serialization/trim_null.sh",
         "debug": "./node_modules/.bin/ts-node --inspect=9231 --inspect-brk src/main.ts  --port=8148 --str_port=9081 --cpuMiners=3 --api --api_port=2442 --networkid=`git rev-parse HEAD` --bootstrap",
         "debugTests": "./node_modules/.bin/ts-node  --inspect=9230 --inspect-brk  test/runner.ts",

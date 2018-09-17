@@ -1,27 +1,51 @@
 import cluster = require("cluster")
-import { configure, getLogger } from "log4js"
+import { getLogger } from "log4js"
 import os = require("os")
+import { globalOptions } from "../main"
 import { MongoServer } from "./mongoServer"
 import { StratumServer } from "./stratumServer"
 const logger = getLogger("FreeHycon")
 
-configure({
-    appenders: {
-        console: {
-            type: "log4js-protractor-appender",
-        },
-        fileLogs: {
-            filename: `./logs/${new Date().getFullYear()}-${(new Date().getMonth()) + 1}-${new Date().getDate()}/logFile.log`,
-            keepFileExt: true,
-            maxLogSize: 16777216,
-            pattern: ".yyyy-MM-dd",
-            type: "dateFile",
-        },
-    },
-    categories: {
-        default: { appenders: ["console", "fileLogs"], level: "info" },
-    },
-})
+export const FC = {
+    ALPHA_INTERN: 0.3,
+    ALPHA_INTERVIEW: 0.1,
+    DEBUG_DIFFICULTY_INTERN: 0.1,
+    DEBUG_NUM_INTERN_PROBLEMS: 5,
+    DEBUG_NUM_INTERVIEW_PROBLEMS: 5,
+    DEBUG_PERIOD_DAYOFF: 5,
+    INITIAL_HASHRATE: 20,
+    INTEVAL_CANDIDATE_BLOCK: 10000,
+    INTEVAL_PATROL_BLACKLIST: 30000,
+    INTEVAL_PAY_WAGES: 30000,
+    INTEVAL_STRATUM_RELEASE_DATA: 10000,
+    INTEVAL_UPDATE_LAST_BLOCK: 5000,
+    MEANTIME_INTERN: 20000,
+    MEANTIME_INTERVIEW: 20000,
+
+    MODE_INSERVICE: false,
+    MODE_RABBITMQ_DEBUG: false,
+
+    MONGO_BLACKLIST: "Blacklist",
+    MONGO_DISCONNECTIONS: "Disconnections",
+    MONGO_LAST_BLOCK: "LastBlock",
+    MONGO_MINED_BLOCKS: "MinedBlocks",
+    MONGO_MINERS: "Miners",
+    MONGO_PAY_WAGES: "PayWages",
+    MONGO_POOL_SUMMARY: "PoolSummary",
+    MONGO_REWARD_BASE: "RewardBase",
+    MONGO_WORKERS: "Workers",
+
+    NUM_DAYOFF_PROBLEMS: 1,
+    NUM_INTERN_PROBLEMS: 20,
+    NUM_INTERVIEW_PROBLEMS: 20,
+    NUM_JOB_BUFFER: 10,
+    NUM_TXS_CONFIRMATIONS: 5,
+    PERIOD_DAYOFF: 100,
+
+    THRESHOLD_MIN_HASHRATE: 30,
+    TRHESHOLD_BLACKLIST: 30,
+}
+
 async function runClusterStratum(isMaster: boolean) {
     if (isMaster) {
         const mongo = new MongoServer()
@@ -38,8 +62,8 @@ function run() {
             cluster.fork()
         })
     } else {
-        logger.info(`Worker Created ${cluster.worker.id}`)
+        logger.info(`Worker created ${cluster.worker.id}`)
         runClusterStratum(false)
     }
 }
-run()
+if (globalOptions.stratum) { run() }

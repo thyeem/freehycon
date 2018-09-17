@@ -1,9 +1,8 @@
 import { configure, getLogger } from "log4js"
 import { showHelp } from "./help"
-
+const logger = getLogger("Main")
 configure({
     appenders: {
-
         console: {
             type: "log4js-protractor-appender",
         },
@@ -19,10 +18,8 @@ configure({
         default: { appenders: ["console", "fileLogs"], level: "info" },
     },
 })
-const logger = getLogger("Main")
 
 import commandLineArgs = require("command-line-args")
-// Alphabetical order
 const optionDefinitions = [
     { name: "api", alias: "a", type: Boolean },
     { name: "api_port", alias: "A", type: Number },

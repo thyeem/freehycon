@@ -1,25 +1,7 @@
-import { configure, getLogger } from "log4js"
+import { getLogger } from "log4js"
 import { globalOptions } from "../main"
 import { MongoServer } from "./mongoServer"
-configure({
-    appenders: {
-        console: {
-            type: "log4js-protractor-appender",
-        },
-        fileLogs: {
-            filename: `./logs/${new Date().getFullYear()}-${(new Date().getMonth()) + 1}-${new Date().getDate()}/logFile.log`,
-            keepFileExt: true,
-            maxLogSize: 16777216,
-            pattern: ".yyyy-MM-dd",
-            type: "dateFile",
-        },
-    },
-    categories: {
-        default: { appenders: ["console", "fileLogs"], level: "info" },
-    },
-})
 const logger = getLogger("Collector")
-
 export interface IMinerCluster {
     _id: string
     nodes: number

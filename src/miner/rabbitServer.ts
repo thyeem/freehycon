@@ -1,6 +1,6 @@
 import { Channel, connect, Connection } from "amqplib"
 import { getLogger } from "log4js"
-import { MongoServer } from "./mongoServer"
+import { FC } from "./freehycon"
 const logger = getLogger("RabbitMQ")
 export class RabbitmqServer {
   private conn: Connection = undefined
@@ -8,7 +8,7 @@ export class RabbitmqServer {
   private queueName: string
   private ip: string
   public constructor(queueName: string) {
-    this.ip = (!MongoServer.isReal) ? "amqp://localhost" : "amqp://freehycon:freehycon@172.31.20.102"
+    this.ip = (FC.MODE_INSERVICE) ? "amqp://freehycon:freehycon@172.31.20.102" : "amqp://localhost"
     if (queueName !== undefined) { this.queueName = queueName }
   }
   public async initialize() {
