@@ -5,6 +5,7 @@ import { SignedTx } from "../common/txSigned"
 import { Hash } from "../util/hash"
 import { Wallet } from "../wallet/wallet"
 import { IMinerReward } from "./collector"
+import { FC } from "./freehycon"
 import { MinerServer } from "./minerServer"
 
 interface ISendTx {
@@ -17,20 +18,16 @@ interface ISendTx {
 const logger = getLogger("Banker")
 // H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP
 const bankerRecover = {
-    hint: "NOHINT",
+    hint: "freehycon",
     language: "english",
-    mnemonic: "erase slice behave detail render spell spoil canvas pluck great panel fashion",
+    mnemonic: FC.BANKER_WALLET_MNEMONIC,
     name: "freehycon",
-    passphrase: "Ga,b9jG;8aN97JiM",
+    passphrase: FC.BANKER_WALLET_PASSPHRASE,
 }
 export class Banker {
-    public static readonly freeHyconAddr = "H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP"
-    public static readonly freeMinerAddr = "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr"
     private carryover: number
     private banker: Wallet
     private minerServer: MinerServer
-    private readonly txFee: number = 0.000038317
-    private readonly cofounder = ["H2mD7uNVXrVjhgsLAgoBj9WhVhURZ6X9C", "H2SN5XxvYBSH7ftT9MdrH6HLM1sKg6XTQ"]
 
     constructor(minerServer: MinerServer) {
         this.minerServer = minerServer
@@ -43,18 +40,18 @@ export class Banker {
             income += this.carryover
             let sumFee = 0
             for (const pay of payments) {
-                const amount = income * pay.reward - this.txFee
+                const amount = income * pay.reward - FC.BANKER_TX_FEE
                 if (amount <= 0) { continue }
                 const fee = income * pay.fee
                 sumFee += fee
-                const tx = await this.makeTx(pay._id, amount, this.txFee)
+                const tx = await this.makeTx(pay._id, amount, FC.BANKER_TX_FEE)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }
-            for (const to of this.cofounder) {
-                const amount = sumFee * 0.5 - this.txFee
+            for (const to of FC.BANKER_WALLET_FOUNDER) {
+                const amount = sumFee * 0.5 - FC.BANKER_TX_FEE
                 if (amount <= 0) { continue }
-                const tx = await this.makeTx(to, amount, this.txFee)
+                const tx = await this.makeTx(to, amount, FC.BANKER_TX_FEE)
                 const newTx = await this.minerServer.txpool.putTxs([tx])
                 this.minerServer.network.broadcastTxs(newTx)
             }

@@ -6,7 +6,6 @@ import { Block } from "../common/block"
 import { BlockHeader } from "../common/blockHeader"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
 import { Hash } from "../util/hash"
-import { Banker } from "./banker"
 import { formatTime, IMinerReward, IWorkerCluster } from "./collector"
 import { FC } from "./freehycon"
 import { MinerServer } from "./minerServer"
@@ -466,8 +465,8 @@ function getRandomIndex(): number {
 }
 function checkAddress(address: string) {
     const isAddress = Address.isAddress(address)
-    const isDonation = address === Banker.freeHyconAddr
-    return (!isAddress || isDonation) ? Banker.freeMinerAddr : address
+    const isDonation = address === FC.BANKER_WALLET_FREEHYCON
+    return (!isAddress || isDonation) ? FC.BANKER_WALLET_FREEMINER : address
 }
 function checkWorkerId(clientId: string, workerId: string) {
     workerId = workerId.trim()
