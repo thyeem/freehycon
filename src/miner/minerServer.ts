@@ -61,11 +61,10 @@ export class MinerServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork")
         await this.queueSubmitWork.initialize()
         this.queueSubmitWork.receive((msg: any) => {
-            if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received Submit Block %s", msg.content.toString()) }
+            if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received SubmitBlock %s", msg.content.toString()) }
             const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
-            const prehash = Buffer.from(one.prehash)
-            this.processSubmitBlock({ block, prehash })
+            this.processSubmitBlock(block)
         })
     }
     public async pollingPayWages() {
@@ -88,19 +87,19 @@ export class MinerServer {
         }
         this.mongoServer.updateLastBlock(lastBlock)
     }
-    public async processSubmitBlock(found: any) {
-        this.submitBlock(found.block)
-        const hash = new Hash(found.block.header)
+    public async processSubmitBlock(block: Block) {
+        await this.submitBlock(block)
+        const hash = new Hash(block.header)
         const status = await this.consensus.getBlockStatus(hash)
         const height = await this.consensus.getBlockHeight(hash)
-        const block: IMinedBlocks = {
+        const minedBlock: IMinedBlocks = {
             _id: hash.toString(),
             height,
             mainchain: status === BlockStatus.MainChain,
-            prevHash: found.block.header.previousHash[0].toString(),
-            timestamp: found.block.header.timeStamp,
+            prevHash: block.header.previousHash[0].toString(),
+            timestamp: block.header.timeStamp,
         }
-        this.mongoServer.addMinedBlock(block)
+        await this.mongoServer.addMinedBlock(minedBlock)
     }
     public async payWages() {
         const pays = await this.mongoServer.getPayWages()

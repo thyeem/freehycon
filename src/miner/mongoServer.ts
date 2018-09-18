@@ -44,14 +44,10 @@ export class MongoServer {
             await collection.update({ _id: worker._id }, worker, { upsert: true })
         }
     }
-    public async resetWorkers() {
+    public async cleanWorkers() {
         const collection = this.db.collection(FC.MONGO_WORKERS)
         await collection.find().forEach((doc) => {
-            if (doc.alive === false) {
-                collection.remove({ _id: doc._id })
-            } else {
-                collection.update({ _id: doc._id }, { $set: { hashshare: 0 } })
-            }
+            if (doc.alive === false) { collection.remove({ _id: doc._id }) }
         })
     }
     public async getWorkers(): Promise<IWorkerCluster[]> {

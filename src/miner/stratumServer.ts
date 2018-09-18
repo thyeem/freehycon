@@ -66,6 +66,7 @@ export class StratumServer {
     private stratumId: string
     private jobId: number
     private port: number
+    private happenedHere: boolean
     private mongoServer: MongoServer
     private queuePutWork: RabbitmqServer
     private queueSubmitWork: RabbitmqServer
@@ -83,6 +84,7 @@ export class StratumServer {
         this.mapWorker = new Map<string, IWorker>()
         this.blacklist = new Map<string, number>()
         this.jobId = 0
+        this.happenedHere = false
         this.setupRabbitMQ()
         if (!FC.MODE_INSERVICE) {
             this.numInternProblems = FC.DEBUG_NUM_INTERN_PROBLEMS
@@ -96,33 +98,36 @@ export class StratumServer {
             this.releaseData()
         }, 1000)
     }
-
     public async setupRabbitMQ() {
         this.queuePutWork = new RabbitmqServer("putwork")
         await this.queuePutWork.initialize()
         this.queueSubmitWork = new RabbitmqServer("submitwork")
         await this.queueSubmitWork.initialize()
-        await this.queuePutWork.receive((msg: any) => {
-            this.stop()
+        this.queuePutWork.receive((msg: any) => {
             if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received PutWork %s", msg.content.toString()) }
             const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
             this.putWork(block, prehash)
         })
+        this.queueSubmitWork.receive(async (msg: any) => {
+            if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received SubmitBlock %s", msg.content.toString()) }
+            this.stop()
+            const one = JSON.parse(msg.content.toString())
+            const block = Block.decode(Buffer.from(one.block)) as Block
+            this.newRound(block)
+        })
     }
-
     public putWork(block: Block, prehash: Uint8Array) {
         try {
             const newJob = this.newJob(block, prehash)
             let index = getRandomIndex()
             for (const [key, worker] of this.mapWorker) {
-                if (worker.client === undefined) { continue }
+                this.measureWorker(worker)
                 if (worker.status === WorkerStatus.Working) {
                     if (this.checkDayoff(worker)) {
                         this.putWorkOnInspector(worker)
                     } else {
-                        this.measureWorker(worker)
                         this.notifyJob(worker.client, ++index, newJob)
                     }
                     continue
@@ -284,10 +289,7 @@ export class StratumServer {
                 const prehash = minedBlock.header.preHash()
                 const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
                 this.queueSubmitWork.send(JSON.stringify(submitData))
-
-                const rewardBase: IMinerReward[] = await this.newRound()
-                const blockHash = new Hash(minedBlock.header)
-                this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
+                this.happenedHere = true
             }
             return true
         } catch (e) {
@@ -405,11 +407,15 @@ export class StratumServer {
         }
         return false
     }
-    private async newRound() {
-        const rewardBase = await this.mongoServer.getRewardBase()
-        await this.mongoServer.resetWorkers()
+    private async newRound(block: Block) {
+        const rewardBase: IMinerReward[] = await this.mongoServer.getRewardBase()
         for (const [_, worker] of this.mapWorker) { worker.hashshare = 0. }
-        return rewardBase
+        this.mongoServer.cleanWorkers()
+        if (this.happenedHere) {
+            const blockHash = new Hash(block.header)
+            this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
+            this.happenedHere = false
+        }
     }
     private async patrolBlacklist() {
         const list = await this.mongoServer.getBlacklist()
