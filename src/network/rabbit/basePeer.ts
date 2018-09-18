@@ -1,6 +1,7 @@
 import { getLogger } from "log4js"
 import { Socket } from "net"
 import { AsyncLock } from "../../common/asyncLock"
+import { FC } from "../../miner/freehycon"
 import * as proto from "../../serialization/proto"
 import { SocketParser } from "./socketParser"
 
@@ -11,7 +12,7 @@ interface ReplyAndPacket { reply: proto.Network, packet: Buffer }
 type replyResolve = (reply: ReplyAndPacket) => void
 type replyReject = (reason?: any) => void
 export abstract class BasePeer {
-    public static DefaultTimeoutTime = 3000
+    public DefaultTimeoutTime = FC.TIMEOUT_ONPACKET_DEFAULT
     public socketBuffer: SocketParser
     private replyId: number
     private replyMap: Map<number, { resolved: replyResolve, reject: replyReject, timeout: NodeJS.Timer }>
@@ -107,13 +108,13 @@ export abstract class BasePeer {
                 case "getHash":
                 case "getTip":
                 case "status":
-                    return 2000
+                    return FC.TIMEOUT_ONPACKET_SHORT
                 case "getBlockTxs":
                 case "getHeadersByRange":
                 case "getBlocksByRange":
-                    return 6000
+                    return FC.TIMEOUT_ONPACKET_LONG
                 default:
-                    return BasePeer.DefaultTimeoutTime
+                    return this.DefaultTimeoutTime
             }
         }
     }

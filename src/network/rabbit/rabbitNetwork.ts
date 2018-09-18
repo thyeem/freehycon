@@ -4,13 +4,13 @@ import * as net from "net"
 import { ITxPool } from "../../common/itxPool"
 import { IConsensus } from "../../consensus/iconsensus"
 import { globalOptions } from "../../main"
+import { FC } from "../../miner/freehycon"
 import * as proto from "../../serialization/proto"
 import { Hash } from "../../util/hash"
 import { INetwork } from "../inetwork"
 import { IPeer } from "../ipeer"
 import { NatUpnp } from "../nat"
 import { PeerDatabase } from "../peerDatabase"
-
 import { UpnpClient, UpnpServer } from "../upnp"
 import { RabbitPeer } from "./rabbitPeer"
 
@@ -21,9 +21,6 @@ export class RabbitNetwork implements INetwork {
     public static seeds: proto.IPeer[] = [
         { host: "rapid1.hycon.io", port: 8148 },
     ]
-
-    public static socketTimeout: number
-
     public static ipNormalise(ipv6: string): string {
         const ipTemp: string[] = ipv6.split(":")
         if (ipTemp.length === 4) {
@@ -32,6 +29,7 @@ export class RabbitNetwork implements INetwork {
     }
     public networkid: string = "hycon"
     public readonly version: number = 9
+    public socketTimeout: number
     public port: number
     public publicPort: number
     public guid: string // unique id to prevent self connecting
@@ -48,7 +46,7 @@ export class RabbitNetwork implements INetwork {
     private natUpnp: NatUpnp
 
     constructor(txPool: ITxPool, consensus: IConsensus, port: number = 8148, peerDbPath: string = "peerdb", networkid: string = "hycon") {
-        RabbitNetwork.socketTimeout = 4000
+        this.socketTimeout = FC.TIMEOUT_NEW_CONNECTION
         this.txPool = txPool
         this.consensus = consensus
         this.port = port
@@ -336,7 +334,7 @@ export class RabbitNetwork implements INetwork {
                     logger.debug(e)
                 }
             })
-            socket.setTimeout(RabbitNetwork.socketTimeout)
+            socket.setTimeout(this.socketTimeout)
             this.peers.set(key, peer)
 
             if (save) {

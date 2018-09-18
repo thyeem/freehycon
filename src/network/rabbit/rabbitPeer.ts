@@ -400,7 +400,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
                 logger.error(`Failed to putTx: ${e}`)
             }
         }
-        if (!FC.MODE_INSERVICE && success) {
+        if (FC.MODE_REBROADCAST_ON && success) {
             rebroadcast()
         }
         return { putTxReturn: { success } }
@@ -455,7 +455,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
             try {
                 block = new Block(request.blocks[0])
                 await this.consensus.putBlock(block)
-                if (!FC.MODE_INSERVICE && await this.blockBroadcastCondition(block)) {
+                if (FC.MODE_REBROADCAST_ON && await this.blockBroadcastCondition(block)) {
                     rebroadcast()
                 }
             } catch (e) {
@@ -468,7 +468,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetBlocksByHash(reply: boolean, request: proto.IGetBlocksByHash): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
-            if (FC.MODE_INSERVICE) {
+            if (!FC.MODE_SYNC_BLOCK_ON) {
                 message = { getBlocksByHashReturn: { success: false } }
                 return message
             }
@@ -489,7 +489,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetHeadersByHash(reply: boolean, request: proto.IGetHeadersByHash): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
-            if (FC.MODE_INSERVICE) {
+            if (!FC.MODE_SYNC_BLOCK_ON) {
                 message = { getBlocksByHashReturn: { success: false } }
                 return message
             }
@@ -510,7 +510,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetBlocksByRange(reply: boolean, request: proto.IGetBlocksByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
-            if (FC.MODE_INSERVICE) {
+            if (!FC.MODE_SYNC_BLOCK_ON) {
                 message = { getBlocksByRangeReturn: { success: false } }
                 return message
             }
@@ -528,7 +528,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetHeadersByRange(reply: boolean, request: proto.IGetHeadersByRange): Promise<proto.INetwork> {
         let message: proto.INetwork
         try {
-            if (FC.MODE_INSERVICE) {
+            if (!FC.MODE_SYNC_BLOCK_ON) {
                 message = { getHeadersByRangeReturn: { success: false } }
                 return message
             }
@@ -582,7 +582,7 @@ export class RabbitPeer extends BasePeer implements IPeer {
         const txBlocks: proto.IBlockTxs[] = []
         let packetSize = 0
         try {
-            if (FC.MODE_INSERVICE) {
+            if (!FC.MODE_SYNC_BLOCK_ON) {
                 message = { getBlockTxsReturn: { txBlocks } }
                 return message
             }
