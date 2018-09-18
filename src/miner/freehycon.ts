@@ -49,8 +49,10 @@ export const FC = {
     NUM_TXS_CONFIRMATIONS: 5,
     PERIOD_DAYOFF: 100,
 
+    THRESHOLD_BLACKLIST: 30,
     THRESHOLD_MIN_HASHRATE: 30,
-    TRHESHOLD_BLACKLIST: 30,
+    TOLERANCE_MAX_SIGMA_INSPECTOR: 3,
+    TOLERANCE_MIN_SIGMA_INSPECTOR: 0.001,
 }
 
 async function runClusterStratum(isMaster: boolean, id: string = "") {

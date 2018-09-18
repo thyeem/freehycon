@@ -363,10 +363,10 @@ export class StratumServer {
     private isInvalidUser(client: any, address: string = "") {
         const remoteIP = client.socket.remoteAddress
         const worker = this.mapWorker.get(client.id)
-        const byAddress = this.blacklist.get(address) > FC.TRHESHOLD_BLACKLIST
-        const byScore = this.blacklist.get(remoteIP) > FC.TRHESHOLD_BLACKLIST
+        const byAddress = this.blacklist.get(address) > FC.THRESHOLD_BLACKLIST
+        const byScore = this.blacklist.get(remoteIP) > FC.THRESHOLD_BLACKLIST
         if (worker !== undefined) {
-            const byWorker = worker.invalid > FC.TRHESHOLD_BLACKLIST
+            const byWorker = worker.invalid > FC.THRESHOLD_BLACKLIST
             return byWorker || byScore || byAddress
         } else {
             return byAddress || byScore
