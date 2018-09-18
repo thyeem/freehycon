@@ -132,6 +132,7 @@ export class Collector {
         }
         await this.collectReward()
 
+        const numPayQ = await this.mongoServer.countPayWages()
         const miners: IMinerCluster[] = Array.from(this.miners.values())
         const rewardBase: IMinerReward[] = Array.from(this.rewardBase.values())
         const summary: IPoolSumary = {
@@ -142,7 +143,7 @@ export class Collector {
         this.mongoServer.updateMiners(miners)
         this.mongoServer.updateRewardBase(rewardBase)
         this.mongoServer.updateSummary(summary)
-        logger.info(`workers(${this.workerCount})  miners(${miners.length})  pool hashrate: ${(0.001 * this.poolHashrate).toFixed(2)} kH/s`)
+        logger.info(`payQ(${numPayQ})  workers(${this.workerCount})  miners(${miners.length})  pool hashrate: ${(0.001 * this.poolHashrate).toFixed(2)} kH/s`)
         setTimeout(() => { this.pollingCollector() }, FC.INTEVAL_COLLECT_POOL_DATA)
     }
 }

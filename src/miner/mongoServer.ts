@@ -100,6 +100,10 @@ export class MongoServer {
         const collection = this.db.collection(FC.MONGO_PAY_WAGES)
         await collection.deleteOne({ _id: payId })
     }
+    public async countPayWages() {
+        const collection = this.db.collection(FC.MONGO_PAY_WAGES)
+        return await collection.find().count()
+    }
     public async updateBlockStatus(blockhash: string, isMainchain: boolean) {
         const collection = this.db.collection(FC.MONGO_MINED_BLOCKS)
         await collection.update({ _id: blockhash }, { $set: { mainchain: isMainchain } })
