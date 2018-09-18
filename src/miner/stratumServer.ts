@@ -191,9 +191,7 @@ export class StratumServer {
                         const isWorking: boolean = worker.status === WorkerStatus.Working
                         const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
                         const nick = (isWorking) ? "" : getNick(worker)
-                        if (job === undefined || job.solved === true) {
-                            deferred.resolve([true]); break
-                        }
+                        if (job === undefined || job.solved === true) { deferred.resolve([true]); break }
                         logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
                         if (isWorking) {
                             verified = await this.completeWork(jobId, req.params.nonce)

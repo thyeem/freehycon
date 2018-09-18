@@ -40,20 +40,18 @@ export class RabbitNetwork implements INetwork {
 
     private peerDatabase: PeerDatabase
     private targetConnectedPeers: number
-    private pendingConnections: Map<number, Promise<RabbitPeer>>
     private upnpServer: UpnpServer
     private upnpClient: UpnpClient
     private natUpnp: NatUpnp
 
     constructor(txPool: ITxPool, consensus: IConsensus, port: number = 8148, peerDbPath: string = "peerdb", networkid: string = "hycon") {
-        this.socketTimeout = FC.TIMEOUT_NEW_CONNECTION
+        this.socketTimeout = FC.TIMEOUT_NETWORK_SOCKET
         this.txPool = txPool
         this.consensus = consensus
         this.port = port
         this.networkid = networkid
         this.targetConnectedPeers = 20
         this.peers = new Map<number, RabbitPeer>()
-        this.pendingConnections = new Map<number, Promise<RabbitPeer>>()
         this.peerDatabase = new PeerDatabase(this, peerDbPath)
         this.guid = new Hash(randomBytes(32)).toString()
         this.consensus.on("txs", (txs) => { this.broadcastTxs(txs) })
@@ -243,39 +241,23 @@ export class RabbitNetwork implements INetwork {
     public async connect(host: string, port: number, save: boolean = true): Promise<RabbitPeer> {
         const ipeer = { host, port }
         const key = PeerDatabase.ipeer2key(ipeer)
-        if (this.pendingConnections.has(key)) {
-            return this.pendingConnections.get(key)
-        }
-        try {
-            const peerPromise = new Promise<RabbitPeer>(async (resolve, reject) => {
-                logger.debug(`Attempting to connect to ${host}:${port}...`)
-                const socket = new net.Socket()
-                socket.once("error", () => reject(`Failed to connect to ${host}:${port}`))
-                socket.once("timeout", () => reject(`Timeout to connect to ${host}:${port}`))
-                socket.connect({ host, port }, async () => {
-                    try {
-                        const newPeer = await this.newConnection(socket, save)
-                        ipeer.host = socket.remoteAddress
-                        resolve(newPeer)
-                    } catch (e) {
-                        reject(e)
-                    }
-                })
-            }).catch(() => undefined)
-            this.pendingConnections.set(key, peerPromise)
-            return peerPromise
-        } catch (e) {
-            // and we don't have connection
-            if (save && !this.peers.has(key)) {
+        let ret: RabbitPeer = await new Promise<RabbitPeer>(async (resolve, reject) => {
+            logger.debug(`Attempting to connect to ${host}:${port}...`)
+            const socket = new net.Socket()
+            socket.setTimeout(FC.TIMEOUT_NETWORK_SOCKET)
+            socket.once("error", () => reject(`Failed to connect to ${host}:${port}`))
+            socket.once("timeout", () => reject(`Timeout to connect to ${host}:${port}`))
+            socket.connect({ host, port }, async () => {
                 try {
-                    await this.peerDatabase.fail(ipeer)
-                } catch (failError) {
-                    logger.debug(`PeerDatabase fail Error=${failError}`)
+                    const newPeer = await this.newConnection(socket, save)
+                    ipeer.host = socket.remoteAddress
+                    resolve(newPeer)
+                } catch (e) {
+                    reject(e)
                 }
-            }
-        } finally {
-            this.pendingConnections.delete(key)
-        }
+            })
+        })
+        return ret
     }
     private async accept(socket: net.Socket): Promise<void> {
         try {
@@ -353,12 +335,13 @@ export class RabbitNetwork implements INetwork {
 
     private async connectToPeer(): Promise<void> {
         if (this.peers.size >= this.targetConnectedPeers) { return }
+        const ipeer = await this.peerDatabase.getRandomPeer()
         try {
-            const ipeer = await this.peerDatabase.getRandomPeer()
             if (ipeer === undefined) { return }
-            this.connect(ipeer.host, ipeer.port).catch(() => undefined)
+            await this.connect(ipeer.host, ipeer.port).catch(() => undefined)
         } catch (e) {
             logger.debug(`Connecting to Peer: ${e}`)
+            this.peerDatabase.remove(ipeer)
         }
     }
     private async connectSeeds() {

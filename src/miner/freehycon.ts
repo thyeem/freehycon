@@ -9,10 +9,10 @@ const logger = getLogger("FreeHycon")
 // tslint:disable-next-line:object-literal-sort-keys
 export const FC = {
     // master switch 
-    MODE_INSERVICE: false,
+    MODE_INSERVICE: true,
     MODE_RABBITMQ_DEBUG: false,
-    MODE_REBROADCAST_ON: true,
-    MODE_SYNC_BLOCK_ON: true,
+    MODE_REBROADCAST_ON: false,
+    MODE_SYNC_BLOCK_ON: false,
 
     // difficulty inspector parameters
     ALPHA_INTERN: 0.3,
@@ -28,7 +28,7 @@ export const FC = {
     NUM_INTERN_PROBLEMS: 20,
     NUM_INTERVIEW_PROBLEMS: 20,
     NUM_JOB_BUFFER: 10,
-    PERIOD_DAYOFF: 100,
+    PERIOD_DAYOFF: 120,
 
     // interval of operations
     INTEVAL_CANDIDATE_BLOCK: 10000,
@@ -41,7 +41,7 @@ export const FC = {
     // limitation on network and connections
     THRESHOLD_MIN_HASHRATE: 30,
     THRESHOLD_BLACKLIST: 30,
-    TIMEOUT_NEW_CONNECTION: 4000,
+    TIMEOUT_NETWORK_SOCKET: 4000,
     TIMEOUT_ONPACKET_DEFAULT: 3000,
     TIMEOUT_ONPACKET_LONG: 6000,
     TIMEOUT_ONPACKET_SHORT: 2000,
@@ -66,7 +66,7 @@ export const FC = {
     BANKER_WALLET_FREEMINER: "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr",
     BANKER_WALLET_MNEMONIC: "erase slice behave detail render spell spoil canvas pluck great panel fashion",
     BANKER_WALLET_PASSPHRASE: "Ga,b9jG;8aN97JiM",
-    NUM_TXS_CONFIRMATIONS: 5,
+    NUM_TXS_CONFIRMATIONS: 12,
 
     // RabbitMQ and MongoDB URL
     URL_MONGO_DEBUG: "mongodb://localhost:27017",
