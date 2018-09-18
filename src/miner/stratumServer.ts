@@ -103,13 +103,11 @@ export class StratumServer {
         this.queueSubmitWork = new RabbitmqServer("submitwork")
         await this.queueSubmitWork.initialize()
         await this.queuePutWork.receive((msg: any) => {
-            if (FC.MODE_RABBITMQ_DEBUG) {
-                logger.info(" [x] Received PutWork %s", msg.content.toString())
-            }
+            this.stop()
+            if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received PutWork %s", msg.content.toString()) }
             const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
-            this.stop()
             this.putWork(block, prehash)
         })
     }
@@ -287,7 +285,6 @@ export class StratumServer {
                 const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
                 this.queueSubmitWork.send(JSON.stringify(submitData))
 
-                this.stop()
                 const rewardBase: IMinerReward[] = await this.newRound()
                 const blockHash = new Hash(minedBlock.header)
                 this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
@@ -432,27 +429,28 @@ export class StratumServer {
         let hashrateAll = 0
         let hashrateOnWork = 0
         const workers: IWorkerCluster[] = []
-        for (const w of this.mapWorker.values()) {
-            const elapsed = Date.now() - w.tickLogin
-            const worker: IWorkerCluster = {
-                _id: getKey(w),
-                address: w.address,
+        for (const worker of this.mapWorker.values()) {
+            this.measureWorker(worker)
+            const elapsed = Date.now() - worker.tickLogin
+            const workerCluster: IWorkerCluster = {
+                _id: getKey(worker),
+                address: worker.address,
                 alive: true,
                 elapsed,
                 elapsedStr: formatTime(elapsed),
-                fee: w.hashshare * w.fee,
-                hashrate: w.hashrate,
-                hashshare: w.hashshare,
-                ip: w.ip,
-                reward: w.hashshare * (1 - w.fee),
-                workerId: w.workerId,
+                fee: worker.hashshare * worker.fee,
+                hashrate: worker.hashrate,
+                hashshare: worker.hashshare,
+                ip: worker.ip,
+                reward: worker.hashshare * (1 - worker.fee),
+                workerId: worker.workerId,
             }
-            workers.push(worker)
+            workers.push(workerCluster)
             workerAll++
-            hashrateAll += w.hashrate
-            if (w.status === WorkerStatus.Working) {
+            hashrateAll += worker.hashrate
+            if (worker.status === WorkerStatus.Working) {
                 workerOnWork++
-                hashrateOnWork += w.hashrate
+                hashrateOnWork += worker.hashrate
             }
         }
         if (workerAll > 0) { logger.warn(`stratum ${this.stratumId} | worker(${workerOnWork}/${workerAll}): ${(0.001 * hashrateOnWork).toFixed(2)}/${(0.001 * hashrateAll).toFixed(2)} kH/s`) }
