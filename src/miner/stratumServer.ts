@@ -282,12 +282,12 @@ export class StratumServer {
                 worker.inspector.jobTimer.lock = false
                 logger.error(`${nick}estimated hashrate(${worker.inspector.submits}): ${(0.001 * worker.hashrate).toFixed(2)} kH/s`)
             } else { // when working on actual job
+                this.happenedHere = true
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 const prehash = minedBlock.header.preHash()
                 const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
                 this.queueSubmitWork.send(JSON.stringify(submitData))
-                this.happenedHere = true
             }
             return true
         } catch (e) {
@@ -412,8 +412,8 @@ export class StratumServer {
         if (this.happenedHere) {
             const blockHash = new Hash(block.header)
             this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
-            this.happenedHere = false
         }
+        this.happenedHere = false
     }
     private async patrolBlacklist() {
         const list = await this.mongoServer.getBlacklist()
