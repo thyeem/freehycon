@@ -53,6 +53,10 @@ export const FC = {
     THRESHOLD_MIN_HASHRATE: 30,
     TOLERANCE_MAX_SIGMA_INSPECTOR: 3,
     TOLERANCE_MIN_SIGMA_INSPECTOR: 0.001,
+    URL_MONGO_DEBUG: "mongodb://localhost:27017",
+    URL_MONGO_SERVICE: "mongodb://172.31.20.102:27017",
+    URL_RABBITMQ_DEBUG: "amqp://localhost",
+    URL_RABBITMQ_SERVICE: "amqp://freehycon:freehycon@172.31.20.102",
 }
 
 async function runClusterStratum(isMaster: boolean, id: string = "") {

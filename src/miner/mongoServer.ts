@@ -12,7 +12,7 @@ export class MongoServer {
     private dbName = "freehycon"
 
     constructor() {
-        this.url = (FC.MODE_INSERVICE) ? "mongodb://172.31.20.102:27017" : "mongodb://localhost:27017"
+        this.url = (FC.MODE_INSERVICE) ? FC.URL_MONGO_SERVICE : FC.URL_MONGO_DEBUG
         this.init()
     }
     public async init() {
