@@ -105,6 +105,7 @@ export class StratumServer {
         await this.queueSubmitWork.initialize()
         this.queuePutWork.receive((msg: any) => {
             if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received PutWork %s", msg.content.toString()) }
+            this.stop()
             const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
@@ -282,11 +283,11 @@ export class StratumServer {
                 worker.inspector.jobTimer.lock = false
                 logger.error(`${nick}estimated hashrate(${worker.inspector.submits}): ${(0.001 * worker.hashrate).toFixed(2)} kH/s`)
             } else { // when working on actual job
-                this.happenedHere = true
                 const minedBlock = new Block(job.block)
                 minedBlock.header.nonce = nonce
                 const prehash = minedBlock.header.preHash()
                 const submitData = { block: minedBlock.encode(), prehash: Buffer.from(prehash) }
+                this.happenedHere = true
                 this.queueSubmitWork.send(JSON.stringify(submitData))
             }
             return true
