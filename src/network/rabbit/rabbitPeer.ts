@@ -429,7 +429,8 @@ export class RabbitPeer extends BasePeer implements IPeer {
 
         const proximalDifficulty = this.consensus.getHtip().header.difficulty * (1 + DIFFICULTY_TOLERANCE)
         const prehash = block.header.preHash()
-        if (!MinerServer.checkNonce(prehash, block.header.nonce, proximalDifficulty)) {
+        const nonceCheck = await MinerServer.checkNonce(prehash, block.header.nonce, proximalDifficulty)
+        if (!nonceCheck) {
             return false
         }
 
