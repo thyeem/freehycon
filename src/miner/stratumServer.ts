@@ -409,8 +409,8 @@ export class StratumServer {
     private async newRound(block: Block) {
         const rewardBase: IMinerReward[] = await this.mongoServer.getRewardBase()
         for (const [_, worker] of this.mapWorker) { worker.hashshare = 0. }
-        this.mongoServer.cleanWorkers()
         if (this.happenedHere) {
+            this.mongoServer.cleanWorkers()
             const blockHash = new Hash(block.header)
             this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
         }
