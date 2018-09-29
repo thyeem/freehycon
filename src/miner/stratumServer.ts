@@ -105,7 +105,6 @@ export class StratumServer {
         await this.queueSubmitWork.initialize()
         this.queuePutWork.receive((msg: any) => {
             if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received PutWork %s", msg.content.toString()) }
-            this.stop()
             const one = JSON.parse(msg.content.toString())
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
@@ -371,8 +370,6 @@ export class StratumServer {
         }
     }
     private giveWarnings(client: any, increment: number = 1) {
-        const remoteIP = client.socket.remoteAddress
-        const score = this.blacklist.get(remoteIP)
         const worker = this.mapWorker.get(client.id)
         if (worker !== undefined) {
             worker.invalid++
@@ -490,7 +487,8 @@ function checkWorkerId(clientId: string, workerId: string) {
 }
 function getNick(worker: IWorker): string {
     const years = Math.floor(worker.career / FC.PERIOD_DAYOFF)
-    return worker.address.slice(0, 8) + ":" + worker.client.id.slice(0, 6) + "(" + years + ") | "
+    const nick = worker.address.slice(0, 8) + ":" + worker.workerId.slice(0, 10) + "(" + years + ")" + " ".repeat(20)
+    return nick.slice(0, 28)
 }
 function bufferToHexBE(target: Buffer) {
     const buf = Buffer.from(target.slice(24, 32))
