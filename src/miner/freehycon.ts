@@ -70,9 +70,11 @@ export const FC = {
 
     // RabbitMQ and MongoDB URL
     URL_MONGO_DEBUG: "mongodb://localhost:27017",
-    URL_MONGO_SERVICE: "mongodb://172.31.20.102:27017",
+    // URL_MONGO_SERVICE: "mongodb://172.31.21.50:27017",
+    URL_MONGO_SERVICE: "mongodb://127.0.0.1:27017",
     URL_RABBITMQ_DEBUG: "amqp://localhost",
-    URL_RABBITMQ_SERVICE: "amqp://freehycon:freehycon@172.31.20.102",
+    //URL_RABBITMQ_SERVICE: "amqp://freehycon:freehycon@172.31.21.50",
+    URL_RABBITMQ_SERVICE: "amqp://freehycon:freehycon@127.0.0.1",
 }
 
 async function runClusterStratum(isMaster: boolean, id: string = "") {
