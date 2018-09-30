@@ -215,7 +215,7 @@ export class StratumServer {
             const worker = this.mapWorker.get(clientId)
             if (worker !== undefined) {
                 this.mapWorker.delete(clientId)
-                this.mongoServer.offWorker(getKey(worker))
+                await this.mongoServer.offWorker(getKey(worker))
                 logger.error(`Worker client closed: ${worker.address} (${clientId})`)
             }
         })
