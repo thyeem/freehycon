@@ -1,0 +1,12 @@
+MOVE to ~/freehycon
+RUN  cp -f src/c_main.ts src/main.ts 
+RUN  pm2 start node_modules/.bin/ts-node -- src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --bootstrap
+
+MOVE to ~/banker
+RUN  cp -f src/c_main.ts src/main.ts 
+RUN  pm2 start node_modules/.bin/ts-node -- src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --peer=aux.hplorer.com:8148 --banker
+
+MOVE to ~/collector
+RUN  cp -f src/s_main.ts src/main.ts 
+RUN  pm2 start node_modules/.bin/ts-node -- src/miner/collector.ts --collector
+
