@@ -258,6 +258,7 @@ export class StratumServer {
             .then(() => {
                 logger.debug(`${nick}Put job(${job.id}): ${client.id}`)
             }, () => {
+                if (worker !== undefined) { worker.status = WorkerStatus.Working }
                 logger.error(`${nick}Put job failed: ${client.id}`)
             },
         )
