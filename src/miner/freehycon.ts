@@ -28,7 +28,7 @@ export const FC = {
     NUM_INTERN_PROBLEMS: 20,
     NUM_INTERVIEW_PROBLEMS: 20,
     NUM_JOB_BUFFER: 10,
-    PERIOD_DAYOFF: 120,
+    PERIOD_DAYOFF: 150,
 
     // interval of operations
     INTEVAL_CANDIDATE_BLOCK: 10000,

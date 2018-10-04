@@ -93,6 +93,7 @@ export class StratumServer {
             this.periodDayoff = FC.DEBUG_PERIOD_DAYOFF
         }
         setTimeout(async () => {
+            await this.mongoServer.resetWorkers()
             await this.patrolBlacklist()
             this.init()
             this.releaseData()

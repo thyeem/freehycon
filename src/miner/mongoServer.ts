@@ -19,6 +19,11 @@ export class MongoServer {
         this.client = await MongoClient.connect(this.url)
         this.db = this.client.db(this.dbName)
     }
+
+    public async resetWorkers() {
+        const collection = this.db.collection(FC.MONGO_WORKERS)
+        await collection.remove({})
+    }
     public async findWorker(key: string): Promise<IWorker> {
         const collection = this.db.collection(FC.MONGO_WORKERS)
         const rows = await collection.find({ _id: key }).limit(1).toArray()
