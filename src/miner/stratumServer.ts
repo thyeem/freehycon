@@ -93,9 +93,9 @@ export class StratumServer {
             this.periodDayoff = FC.DEBUG_PERIOD_DAYOFF
         }
         setTimeout(async () => {
-            await this.mongoServer.resetWorkers()
-            await this.patrolBlacklist()
             this.init()
+            await this.mongoServer.resetWorkers()
+            this.patrolBlacklist()
             this.releaseData()
         }, 1000)
     }
@@ -375,7 +375,7 @@ export class StratumServer {
         const worker = this.mapWorker.get(client.id)
         if (worker !== undefined) {
             worker.invalid++
-            if (this.isInvalidUser(worker.client)) { this.banInvalidUsers(worker.client) }
+            if (this.isInvalidUser(worker.client, worker.address)) { this.banInvalidUsers(worker.client) }
         } else {
             if (this.isInvalidUser(client)) { this.banInvalidUsers(client) }
         }
