@@ -82,7 +82,7 @@ export class RabbitNetwork implements INetwork {
 
     public async addPeer(ip: string, port: number): Promise<void> {
         // add or update to the database
-        await this.peerDatabase.seen({ host: ip, port })
+        // await this.peerDatabase.seen({ host: ip, port })
         this.connect(ip, port).catch(() => undefined)
     }
 
