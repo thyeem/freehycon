@@ -190,7 +190,7 @@ export class RabbitNetwork implements INetwork {
             }
         }
 
-        await this.connectSeedLoop()
+        // await this.connectSeedLoop()
         await this.connectLoop()
         this.showInfo()
         return true

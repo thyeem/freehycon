@@ -81,14 +81,14 @@ export class PeerDatabase implements IPeerDatabase {
     public async fail(peer: proto.IPeer): Promise<proto.IPeer> {
         if (peer.port > 10000) { return }
         const key = PeerDatabase.ipeer2key(peer)
-        this.removePeer(key)
+        // this.removePeer(key)
     }
     public async removePeer(key: number) {
-        await this.connection.manager.delete(PeerModel, { key })
+        // await this.connection.manager.delete(PeerModel, { key })
     }
     public remove(peer: proto.IPeer) {
         const key = PeerDatabase.ipeer2key(peer)
-        this.removePeer(key)
+        // this.removePeer(key)
     }
 
     public async deactivate(key: number) {
