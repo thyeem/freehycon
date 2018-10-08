@@ -379,7 +379,8 @@ export class RabbitPeer extends BasePeer implements IPeer {
     private async respondGetPeers(reply: boolean, request: proto.IGetPeers): Promise<proto.INetwork> {
         try {
             const num = request.count
-            const peers = this.network.getIPeers(this)
+            // const peers = this.network.getIPeers(this)
+            const peers: proto.IPeer[] = []
             return { getPeersReturn: { success: true, peers } }
         } catch (e) {
             logger.error(`Could not get recent active Peers: ${e}`)
