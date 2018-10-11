@@ -28,7 +28,7 @@ export class RabbitNetwork implements INetwork {
         } else { return ipv6 }
     }
     public networkid: string = "hycon"
-    public readonly version: number = 9
+    public readonly version: number = 11
     public socketTimeout: number
     public port: number
     public publicPort: number
@@ -50,7 +50,7 @@ export class RabbitNetwork implements INetwork {
         this.consensus = consensus
         this.port = port
         this.networkid = networkid
-        this.targetConnectedPeers = 20
+        this.targetConnectedPeers = FC.NUM_MAX_PEERS
         this.peers = new Map<number, RabbitPeer>()
         this.peerDatabase = new PeerDatabase(this, peerDbPath)
         this.guid = new Hash(randomBytes(32)).toString()
@@ -82,7 +82,6 @@ export class RabbitNetwork implements INetwork {
 
     public async addPeer(ip: string, port: number): Promise<void> {
         // add or update to the database
-        await this.peerDatabase.seen({ host: ip, port })
         this.connect(ip, port).catch(() => undefined)
     }
 
@@ -261,6 +260,7 @@ export class RabbitNetwork implements INetwork {
     }
     private async accept(socket: net.Socket): Promise<void> {
         try {
+            if (this.peers.size >= FC.THRESHOLD_REJECT_IMCOMING) { return }
             socket.once("error", (e) => logger.debug(`Accept socket error: ${e}`))
             logger.fatal(`Incoming peer connection ${RabbitNetwork.ipNormalise(socket.remoteAddress)}:${socket.remotePort}`)
             const peer = await this.newConnection(socket)

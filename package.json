@@ -9,10 +9,10 @@
         "assets": "mnemonic/*"
     },
     "scripts": {
-        "stratum": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --stratum",
-        "hycon": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9081 --api --api_port=2442 --cpuMiners=0 --bootstrap",
-        "banker": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8188 --str_port=9088 --api --api_port=2442 --cpuMiners=0 --banker",
-        "collector": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/collector.ts --collector",
+        "main": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8148 --str_port=9090 --api --api_port=2442 --cpuMiners=0 --bootstrap",
+        "sub": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8149 --str_port=9091 --api --api_port=2443 --cpuMiners=0 --banker",
+        "stratum": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/miner/freehycon.ts --port=8150 --str_port=9081 --api --api_port=2444 --cpuMiners=0 --stratum",
+        "getGuid": "cp -f src/s_main.ts src/main.ts && ./node_modules/.bin/ts-node src/util/getGuid.ts",
         "seed": "cp -f src/c_main.ts src/main.ts && ./node_modules/.bin/ts-node src/main.ts --port=8168 --str_port=9086 --api_port=2462 --cpuMiners=0 --networkid=freehycon --bootstrap",
         "protogen": "pbjs -t static-module -w commonjs -o src/serialization/proto.js proto/main.proto &&  pbts -o src/serialization/proto.d.ts src/serialization/proto.js && ./src/serialization/trim_null.sh",
         "debug": "./node_modules/.bin/ts-node --inspect=9231 --inspect-brk src/main.ts  --port=8148 --str_port=9081 --cpuMiners=3 --api --api_port=2442 --networkid=`git rev-parse HEAD` --bootstrap",
@@ -94,6 +94,7 @@
         "delay": "^3.1.0",
         "express": "^4.16.3",
         "fs-extra": "^5.0.0",
+        "getmac": "^1.4.6",
         "input": "^1.0.1",
         "ip": "^1.1.5",
         "ip-location": "^1.0.1",

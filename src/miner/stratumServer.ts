@@ -94,7 +94,6 @@ export class StratumServer {
         }
         setTimeout(async () => {
             this.init()
-            await this.mongoServer.resetWorkers()
             this.patrolBlacklist()
             this.releaseData()
         }, 1000)
@@ -190,7 +189,7 @@ export class StratumServer {
                         const isWorking: boolean = worker.status === WorkerStatus.Working
                         const job = isWorking ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
                         const nick = isWorking ? "" : getNick(worker)
-                        if (job || job.solved === true) { deferred.resolve([true]); break }
+                        if (!job || job.solved === true) { deferred.resolve([true]); break }
                         logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
                         if (isWorking) {
                             verified = await this.completeWork(jobId, req.params.nonce)
@@ -405,9 +404,9 @@ export class StratumServer {
         return false
     }
     private async newRound(block: Block) {
-        const rewardBase: IMinerReward[] = await this.mongoServer.getRewardBase()
         for (const [_, worker] of this.mapWorker) { worker.hashshare = 0. }
         if (this.happenedHere) {
+            const rewardBase: IMinerReward[] = await this.mongoServer.getRewardBase()
             this.mongoServer.resetWorkers()
             const blockHash = new Hash(block.header)
             this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })

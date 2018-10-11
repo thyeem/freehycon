@@ -75,9 +75,9 @@ export class Collector {
         const workers = await this.mongoServer.getWorkers()
         for (const worker of workers) {
             const miner = this.miners.get(worker.address)
-            const dead = Date.now() - worker.lastUpdate >= 30000
-            const nodes = dead ? 1 : 0
-            const hashrate = dead ? worker.hashrate : 0
+            const dead = Date.now() - worker.lastUpdate >= FC.TOLERANCE_WORKER_DISCONNECTION_TIME
+            const nodes = dead ? 0 : 1
+            const hashrate = dead ? 0 : worker.hashrate
             if (miner === undefined) {
                 this.miners.set(worker.address, {
                     _id: worker.address,
