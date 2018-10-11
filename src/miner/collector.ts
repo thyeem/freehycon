@@ -1,6 +1,6 @@
 import { getLogger } from "log4js"
 import { globalOptions } from "../main"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("Collector")
 export interface IMinerCluster {
@@ -52,6 +52,7 @@ export interface IPoolSumary {
 export class Collector {
     private mongoServer: MongoServer
     private workerCount: number
+    private minerCount: number
     private poolHashrate: number
     private poolHashshare: number
     private miners: Map<string, IMinerCluster>
@@ -65,6 +66,7 @@ export class Collector {
 
     private reset() {
         this.workerCount = 0
+        this.minerCount = 0
         this.poolHashrate = 0.
         this.poolHashshare = 0.
         this.miners.clear()
@@ -102,6 +104,11 @@ export class Collector {
     }
     private async collectPoolSummary() {
         for (const [_, miner] of this.miners) {
+            if (miner.nodes === 0) {
+                miner.elapsedStr = "-"
+            } else {
+                this.minerCount++
+            }
             this.workerCount += miner.nodes
             this.poolHashrate += miner.hashrate
             this.poolHashshare += miner.hashshare
@@ -143,7 +150,7 @@ export class Collector {
         this.mongoServer.updateMiners(miners)
         this.mongoServer.updateRewardBase(rewardBase)
         this.mongoServer.updateSummary(summary)
-        logger.info(`payQ(${numPayQ})  workers(${this.workerCount})  miners(${miners.length})  pool hashrate: ${(0.001 * this.poolHashrate).toFixed(2)} kH/s`)
+        logger.info(`payQ(${numPayQ})  workers(${this.workerCount})  miners(${this.minerCount})  pool hashrate: ${(0.001 * this.poolHashrate).toFixed(2)} kH/s`)
         setTimeout(() => { this.pollingCollector() }, FC.INTEVAL_COLLECT_POOL_DATA)
     }
 }

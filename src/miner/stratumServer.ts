@@ -7,7 +7,7 @@ import { BlockHeader } from "../common/blockHeader"
 import { DifficultyAdjuster } from "../consensus/difficultyAdjuster"
 import { Hash } from "../util/hash"
 import { formatTime, IMinerReward, IWorkerCluster } from "./collector"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { MinerServer } from "./minerServer"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
@@ -262,7 +262,7 @@ export class StratumServer {
                 if (worker !== undefined) { worker.status = WorkerStatus.Working }
                 logger.error(`${nick}Put job failed: ${client.id}`)
             },
-        )
+            )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
@@ -457,7 +457,7 @@ export class StratumServer {
                 hashrateOnWork += worker.hashrate
             }
         }
-        if (workerAll > 0) { logger.warn(`stratum ${this.stratumId} | worker(${workerOnWork}/${workerAll}): ${(0.001 * hashrateOnWork).toFixed(2)}/${(0.001 * hashrateAll).toFixed(2)} kH/s`) }
+        if (workerAll > 0) { logger.warn(`${padEnd("stratum " + this.stratumId, " ", 29)}worker(${workerOnWork}/${workerAll}): ${(0.001 * hashrateOnWork).toFixed(2)}/${(0.001 * hashrateAll).toFixed(2)} kH/s`) }
         this.mongoServer.updateWorkers(workers)
         setTimeout(() => { this.releaseData() }, FC.INTEVAL_STRATUM_RELEASE_DATA)
     }
@@ -489,8 +489,11 @@ function checkWorkerId(clientId: string, workerId: string) {
 }
 function getNick(worker: IWorker): string {
     const years = Math.floor(worker.career / FC.PERIOD_DAYOFF)
-    const nick = worker.address.slice(0, 8) + ":" + worker.workerId.slice(0, 10) + "(" + years + ")" + " ".repeat(20)
-    return nick.slice(0, 28)
+    const nick = padEnd(worker.address.slice(0, 8) + ":" + worker.workerId.slice(0, 10) + "(" + years + ")", " ", 28)
+    return nick
+}
+function padEnd(str: string, padStr: string, length: number) {
+    return (str + padStr.repeat(length)).slice(0, length)
 }
 function bufferToHexBE(target: Buffer) {
     const buf = Buffer.from(target.slice(24, 32))

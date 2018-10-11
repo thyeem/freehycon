@@ -1,7 +1,7 @@
 import { getLogger } from "log4js"
 import { Socket } from "net"
 import { AsyncLock } from "../../common/asyncLock"
-import { FC } from "../../miner/freehycon"
+import { FC } from "../../miner/config"
 import * as proto from "../../serialization/proto"
 import { SocketParser } from "./socketParser"
 

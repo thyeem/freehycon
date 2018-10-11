@@ -1,6 +1,6 @@
 import { Channel, connect, Connection } from "amqplib"
 import { getLogger } from "log4js"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 const logger = getLogger("RabbitMQ")
 export class RabbitmqServer {
     private conn: Connection = undefined

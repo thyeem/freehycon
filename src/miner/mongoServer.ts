@@ -1,7 +1,7 @@
 import { getLogger } from "log4js"
 import { Db, MongoClient } from "mongodb"
 import { ILastBlock, IMinedBlocks, IMinerCluster, IMinerReward, IPoolSumary, IWorkerCluster } from "./collector"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { IWorker, parseKey } from "./stratumServer"
 const logger = getLogger("MongoServer")
 

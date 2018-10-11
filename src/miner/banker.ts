@@ -5,7 +5,7 @@ import { SignedTx } from "../common/txSigned"
 import { Hash } from "../util/hash"
 import { Wallet } from "../wallet/wallet"
 import { IMinerReward } from "./collector"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { MinerServer } from "./minerServer"
 
 interface ISendTx {

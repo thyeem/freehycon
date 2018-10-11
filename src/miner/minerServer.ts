@@ -14,7 +14,7 @@ import { INetwork } from "../network/inetwork"
 import { Hash } from "../util/hash"
 import { Banker } from "./banker"
 import { formatTime, ILastBlock, IMinedBlocks, IMinerReward } from "./collector"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
 const logger = getLogger("Miner")

@@ -1,5 +1,5 @@
 import { getLogger } from "log4js"
-import { FC } from "./freehycon"
+import { FC } from "./config"
 import { IJob } from "./stratumServer"
 const logger = getLogger("Workernspector")
 interface IJobTimer {
