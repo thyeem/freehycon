@@ -513,7 +513,7 @@ function hexToLongLE(val: string): Long {
 }
 function getDecayedFee(dt: number) {
     dt = (dt < 0) ? 0 : 0.001 * dt
-    let fee = 0.029 * Math.exp(-Math.LN2 / 3600.0 * dt)
-    fee = (fee < 0.0029) ? 0.0029 : fee
+    let fee = FC.FEE_INITIAL * Math.exp(-Math.LN2 / 3600.0 * dt)
+    fee = (fee < FC.FEE_FINAL) ? FC.FEE_FINAL : fee
     return fee
 }

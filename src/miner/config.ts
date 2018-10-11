@@ -20,6 +20,8 @@ export const FC = {
     NUM_INTERVIEW_PROBLEMS: 20,
     NUM_JOB_BUFFER: 10,
     PERIOD_DAYOFF: 150,
+    TOLERANCE_MAX_SIGMA_INSPECTOR: 3,
+    TOLERANCE_MIN_SIGMA_INSPECTOR: 0.001,
 
     // interval of operations
     INTEVAL_CANDIDATE_BLOCK: 10000,
@@ -29,15 +31,13 @@ export const FC = {
     INTEVAL_STRATUM_RELEASE_DATA: 10000,
     INTEVAL_UPDATE_LAST_BLOCK: 5000,
 
-    // limitation on network and connections
+    // network and connections
     THRESHOLD_MIN_HASHRATE: 30,
     THRESHOLD_BLACKLIST: 30,
     TIMEOUT_NETWORK_SOCKET: 4000,
     TIMEOUT_ONPACKET_DEFAULT: 3000,
     TIMEOUT_ONPACKET_LONG: 6000,
     TIMEOUT_ONPACKET_SHORT: 2000,
-    TOLERANCE_MAX_SIGMA_INSPECTOR: 3,
-    TOLERANCE_MIN_SIGMA_INSPECTOR: 0.001,
 
     // MongoDB collection name
     MONGO_BLACKLIST: "Blacklist",
@@ -57,6 +57,8 @@ export const FC = {
     BANKER_WALLET_FREEMINER: "H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr",
     BANKER_WALLET_MNEMONIC: "erase slice behave detail render spell spoil canvas pluck great panel fashion",
     BANKER_WALLET_PASSPHRASE: "Ga,b9jG;8aN97JiM",
+    FEE_INITIAL: 0.029,
+    FEE_FINAL: 0.025,
     NUM_TXS_CONFIRMATIONS: 12,
 
     // RabbitMQ and MongoDB URL
