@@ -171,11 +171,11 @@ export class StratumServer {
                         const key = genKey(remoteIP, validAddress, validWorkerId)
                         authorized = true
                         worker = await this.mongoServer.findWorker(key)
-                        const status = (worker === undefined) ? "new" : "old"
-                        if (worker === undefined) {
-                            worker = this.welcomeNewWorker(client, key)
-                        } else {
+                        const status = worker ? "new" : "old"
+                        if (worker) {
                             this.updateOldWorker(client, worker)
+                        } else {
+                            worker = this.welcomeNewWorker(client, key)
                         }
                         logger.warn(`Authorized ${status} worker: ${address} | IP address: ${remoteIP}`)
                         this.putWorkOnInspector(worker)
@@ -185,14 +185,12 @@ export class StratumServer {
                 case "submit":
                     let verified = false
                     worker = this.mapWorker.get(client.id)
-                    if (worker === undefined) {
-                        this.giveWarnings(client)
-                    } else {
+                    if (worker) {
                         const jobId = Number(req.params.job_id)
                         const isWorking: boolean = worker.status === WorkerStatus.Working
-                        const job = (isWorking) ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
-                        const nick = (isWorking) ? "" : getNick(worker)
-                        if (job === undefined || job.solved === true) { deferred.resolve([true]); break }
+                        const job = isWorking ? this.mapJob.get(jobId) : worker.inspector.mapJob.get(jobId)
+                        const nick = isWorking ? "" : getNick(worker)
+                        if (job || job.solved === true) { deferred.resolve([true]); break }
                         logger.debug(`${nick}submit job(${req.params.job_id}): ${bufferToHexBE(Buffer.from(req.params.result, "hex"))}`)
                         if (isWorking) {
                             verified = await this.completeWork(jobId, req.params.nonce)
@@ -201,6 +199,8 @@ export class StratumServer {
                             verified = await this.completeWork(jobId, req.params.nonce, worker)
                             if (verified) { this.keepWorkingTest(worker) }
                         }
+                    } else {
+                        this.giveWarnings(client)
                     }
                     deferred.resolve([verified])
                     break
@@ -214,7 +214,7 @@ export class StratumServer {
         })
         this.stratum.on("close", async (clientId: any) => {
             const worker = this.mapWorker.get(clientId)
-            if (worker !== undefined) {
+            if (worker) {
                 this.mapWorker.delete(clientId)
                 await this.mongoServer.offWorker(getKey(worker))
                 logger.error(`Worker client closed: ${worker.address} (${clientId})`)
@@ -223,10 +223,10 @@ export class StratumServer {
         this.stratum.listen().done((msg: any) => { logger.fatal(msg) })
     }
     private newJob(block: Block, prehash: Uint8Array, worker?: IWorker): IJob {
-        const nick = (worker !== undefined) ? getNick(worker) : ""
-        let id = (worker !== undefined) ? worker.inspector.jobId : this.jobId
+        const nick = worker ? getNick(worker) : ""
+        let id = worker ? worker.inspector.jobId : this.jobId
         if (id > 0x7FFFFFFF) { id = 0 }
-        if (worker !== undefined) {
+        if (worker) {
             worker.inspector.jobId = ++id
             worker.inspector.mapJob.delete(id - worker.inspector.numJobBuffer)
         } else {
@@ -234,12 +234,12 @@ export class StratumServer {
             this.mapJob.delete(id - FC.NUM_JOB_BUFFER)
         }
         const prehashHex = Buffer.from(prehash as Buffer).toString("hex")
-        const difficulty = (worker !== undefined) ? worker.inspector.difficulty : block.header.difficulty
+        const difficulty = worker ? worker.inspector.difficulty : block.header.difficulty
         const target = DifficultyAdjuster.getTarget(difficulty, 32)
         const targetHex = DifficultyAdjuster.getTarget(difficulty, 8).toString("hex")
         const job = { block, id, prehash, prehashHex, solved: false, target, targetHex }
 
-        if (worker !== undefined) {
+        if (worker) {
             worker.inspector.mapJob.set(worker.inspector.jobId, job)
         } else {
             this.mapJob.set(this.jobId, job)
@@ -248,37 +248,36 @@ export class StratumServer {
         return job
     }
     private async notifyJob(client: any, index: number, job: IJob, worker?: IWorker) {
-        const nick = (worker !== undefined) ? getNick(worker) : ""
-        if (client === undefined) {
+        const nick = worker ? getNick(worker) : ""
+        if (!client) {
             logger.error(`${nick}undefined of the stratum client:`)
             return
         }
-        if (job === undefined) { return }
-        if (job.prehashHex === undefined) { return }
+        if (!job || job.prehashHex === undefined) { return }
         client.notify([index, job.prehashHex, job.targetHex, job.id, "0", "0", "0", "0", true])
             .then(() => {
                 logger.debug(`${nick}Put job(${job.id}): ${client.id}`)
             }, () => {
-                if (worker !== undefined) { worker.status = WorkerStatus.Working }
+                if (worker) { worker.status = WorkerStatus.Working }
                 logger.error(`${nick}Put job failed: ${client.id}`)
             },
             )
     }
     private async completeWork(jobId: number, nonceStr: string, worker?: IWorker): Promise<boolean> {
         try {
-            const job = (worker !== undefined) ? worker.inspector.mapJob.get(jobId) : this.mapJob.get(jobId)
-            const nick = (worker !== undefined) ? getNick(worker) : ""
-            if (job === undefined) { return false }
+            const job = worker ? worker.inspector.mapJob.get(jobId) : this.mapJob.get(jobId)
+            const nick = worker ? getNick(worker) : ""
+            if (!job) { return false }
 
             const nonce = hexToLongLE(nonceStr)
             const nonceCheck = await MinerServer.checkNonce(job.prehash, nonce, -1, job.target)
             if (!nonceCheck) {
                 logger.error(`${nick}received incorrect nonce: ${nonce.toString()}`)
-                if (worker !== undefined) { this.giveWarnings(worker.client) }
+                if (worker) { this.giveWarnings(worker.client) }
                 return false
             }
             job.solved = true
-            if (worker !== undefined) { // working on virtual job
+            if (worker) { // working on virtual job
                 worker.inspector.submits++
                 worker.inspector.stop()
                 worker.inspector.jobTimer.lock = false
@@ -346,7 +345,7 @@ export class StratumServer {
         this.mapWorker.set(client.id, worker)
     }
     private banInvalidUsers(client: any) {
-        if (client === undefined) { return }
+        if (!client) { return }
         try {
             const remoteIP = client.socket.remoteAddress
             logger.error(`Banned invalid user of remoteIP: ${remoteIP} | score: ${this.blacklist.get(remoteIP)}`)
@@ -364,7 +363,7 @@ export class StratumServer {
         const worker = this.mapWorker.get(client.id)
         const byAddress = this.blacklist.get(address) > FC.THRESHOLD_BLACKLIST
         const byScore = this.blacklist.get(remoteIP) > FC.THRESHOLD_BLACKLIST
-        if (worker !== undefined) {
+        if (worker) {
             const byWorker = worker.invalid > FC.THRESHOLD_BLACKLIST
             return byWorker || byScore || byAddress
         } else {
@@ -373,7 +372,7 @@ export class StratumServer {
     }
     private giveWarnings(client: any, increment: number = 1) {
         const worker = this.mapWorker.get(client.id)
-        if (worker !== undefined) {
+        if (worker) {
             worker.invalid++
             if (this.isInvalidUser(worker.client, worker.address)) { this.banInvalidUsers(worker.client) }
         } else {
@@ -467,7 +466,7 @@ export function genKey(ip: string, address: string, workerId: string) {
     return ip + "_" + address + "_" + workerId
 }
 export function getKey(worker: IWorker) {
-    return (worker === undefined) ? undefined : worker.ip + "_" + worker.address + "_" + worker.workerId
+    return worker ? worker.ip + "_" + worker.address + "_" + worker.workerId : undefined
 }
 export function parseKey(key: string) {
     return key.split("_").slice(0, 3)
