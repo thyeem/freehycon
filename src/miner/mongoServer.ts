@@ -33,9 +33,7 @@ export class MongoServer {
     }
     public async offWorker(key: string) {
         const [ip, address, workerId] = parseKey(key)
-        let collection = this.db.collection(FC.MONGO_WORKERS)
-        await collection.update({ _id: key }, { $set: { alive: false } })
-        collection = this.db.collection(FC.MONGO_DISCONNECTIONS)
+        const collection = this.db.collection(FC.MONGO_DISCONNECTIONS)
         await collection.insertOne({
             address,
             timestamp: Date.now(),
@@ -48,12 +46,6 @@ export class MongoServer {
         for (const worker of workers) {
             await collection.update({ _id: worker._id }, worker, { upsert: true })
         }
-    }
-    public async cleanWorkers() {
-        const collection = this.db.collection(FC.MONGO_WORKERS)
-        await collection.find().forEach((doc) => {
-            if (doc.alive === false) { collection.remove({ _id: doc._id }) }
-        })
     }
     public async getWorkers(): Promise<IWorkerCluster[]> {
         const collection = this.db.collection(FC.MONGO_WORKERS)

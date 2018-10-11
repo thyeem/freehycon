@@ -409,7 +409,7 @@ export class StratumServer {
         const rewardBase: IMinerReward[] = await this.mongoServer.getRewardBase()
         for (const [_, worker] of this.mapWorker) { worker.hashshare = 0. }
         if (this.happenedHere) {
-            this.mongoServer.cleanWorkers()
+            this.mongoServer.resetWorkers()
             const blockHash = new Hash(block.header)
             this.mongoServer.addPayWage({ _id: blockHash.toString(), rewardBase })
         }
@@ -439,13 +439,13 @@ export class StratumServer {
             const workerCluster: IWorkerCluster = {
                 _id: getKey(worker),
                 address: worker.address,
-                alive: true,
                 elapsed,
                 elapsedStr: formatTime(elapsed),
                 fee: worker.hashshare * worker.fee,
                 hashrate: worker.hashrate,
                 hashshare: worker.hashshare,
                 ip: worker.ip,
+                lastUpdate: Date.now(),
                 reward: worker.hashshare * (1 - worker.fee),
                 workerId: worker.workerId,
             }

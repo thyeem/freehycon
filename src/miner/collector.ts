@@ -15,7 +15,7 @@ export interface IMinerCluster {
 export interface IWorkerCluster {
     _id: string
     address: string
-    alive: boolean
+    lastUpdate: number
     workerId: string
     hashrate: number
     hashshare: number
@@ -75,8 +75,9 @@ export class Collector {
         const workers = await this.mongoServer.getWorkers()
         for (const worker of workers) {
             const miner = this.miners.get(worker.address)
-            const nodes = (worker.alive === true) ? 1 : 0
-            const hashrate = (worker.alive === true) ? worker.hashrate : 0
+            const dead = Date.now() - worker.lastUpdate >= 30000
+            const nodes = dead ? 1 : 0
+            const hashrate = dead ? worker.hashrate : 0
             if (miner === undefined) {
                 this.miners.set(worker.address, {
                     _id: worker.address,
