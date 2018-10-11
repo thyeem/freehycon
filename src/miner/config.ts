@@ -1,6 +1,6 @@
 export const FC = {
     // master switch 
-    MODE_INSERVICE: true,
+    MODE_INSERVICE: false,
     MODE_RABBITMQ_DEBUG: false,
     MODE_REBROADCAST_ON: false,
     MODE_SYNC_BLOCK_ON: false,
@@ -23,7 +23,7 @@ export const FC = {
 
     // interval of operations
     INTEVAL_CANDIDATE_BLOCK: 10000,
-    INTEVAL_COLLECT_POOL_DATA: 2000,
+    INTEVAL_COLLECT_POOL_DATA: 3000,
     INTEVAL_PATROL_BLACKLIST: 600000,
     INTEVAL_PAY_WAGES: 30000,
     INTEVAL_STRATUM_RELEASE_DATA: 10000,

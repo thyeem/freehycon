@@ -17,6 +17,7 @@ import { formatTime, ILastBlock, IMinedBlocks, IMinerReward } from "./collector"
 import { FC } from "./config"
 import { MongoServer } from "./mongoServer"
 import { RabbitmqServer } from "./rabbitServer"
+import { Collector } from "./collector"
 const logger = getLogger("Miner")
 
 export class MinerServer {
@@ -46,14 +47,13 @@ export class MinerServer {
         this.mongoServer = new MongoServer()
         this.banker = new Banker(this)
         this.consensus.on("candidate", (previousDBBlock: DBBlock, previousHash: Hash) => this.candidate(previousDBBlock, previousHash))
-        setTimeout(() => {
-            if (globalOptions.banker) {
-                this.pollingPayWages()
-            } else {
-                this.setupRabbitMQ()
-                this.pollingUpdateLastBlock()
-            }
-        }, 5000)
+        if (globalOptions.banker) {
+            this.pollingPayWages()
+            const collector = new Collector(this.mongoServer)
+        } else {
+            this.setupRabbitMQ()
+            this.pollingUpdateLastBlock()
+        }
     }
     public async setupRabbitMQ() {
         this.queuePutWork = new RabbitmqServer("putwork")
@@ -142,22 +142,22 @@ export class MinerServer {
         this.intervalId = setInterval(() => this.createCandidate(previousDBBlock, previousHash, miner), FC.INTEVAL_CANDIDATE_BLOCK)
     }
     private async createCandidate(previousDBBlock: DBBlock, previousHash: Hash, miner: Address) {
-        const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
-        const { stateTransition: { currentStateRoot }, validTxs, invalidTxs } = await this.worldState.next(previousDBBlock.header.stateRoot, miner)
-        this.txpool.removeTxs(invalidTxs)
-        const block = new Block({
-            header: new BlockHeader({
-                difficulty: previousDBBlock.nextDifficulty,
-                merkleRoot: Block.calculateMerkleRoot(validTxs),
-                miner,
-                nonce: -1,
-                previousHash: [previousHash],
-                stateRoot: currentStateRoot,
-                timeStamp,
-            }),
-            txs: validTxs,
-        })
         if (!globalOptions.banker && this.queuePutWork !== undefined) {
+            const timeStamp = Math.max(Date.now(), previousDBBlock.header.timeStamp + 50)
+            const { stateTransition: { currentStateRoot }, validTxs, invalidTxs } = await this.worldState.next(previousDBBlock.header.stateRoot, miner)
+            this.txpool.removeTxs(invalidTxs)
+            const block = new Block({
+                header: new BlockHeader({
+                    difficulty: previousDBBlock.nextDifficulty,
+                    merkleRoot: Block.calculateMerkleRoot(validTxs),
+                    miner,
+                    nonce: -1,
+                    previousHash: [previousHash],
+                    stateRoot: currentStateRoot,
+                    timeStamp,
+                }),
+                txs: validTxs,
+            })
             const prehash = block.header.preHash()
             const putWorkData = { block: block.encode(), prehash: Buffer.from(prehash) }
             this.queuePutWork.send(JSON.stringify(putWorkData))

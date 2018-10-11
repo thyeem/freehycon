@@ -1,5 +1,4 @@
 import { getLogger } from "log4js"
-import { globalOptions } from "../main"
 import { FC } from "./config"
 import { MongoServer } from "./mongoServer"
 const logger = getLogger("Collector")
@@ -183,9 +182,3 @@ export function formatTime(second: number) {
     }
     return res + second.toFixed(0) + "s"
 }
-
-function run() {
-    const mongo = new MongoServer()
-    const collector = new Collector(mongo)
-}
-if (globalOptions.collector) { run() }
