@@ -66,6 +66,7 @@ export class StratumServer {
     private stratumId: string
     private jobId: number
     private port: number
+    private lastUpdate: number
     private happenedHere: boolean
     private mongoServer: MongoServer
     private queuePutWork: RabbitmqServer
@@ -85,6 +86,7 @@ export class StratumServer {
         this.blacklist = new Map<string, number>()
         this.jobId = 0
         this.happenedHere = false
+        this.lastUpdate = Date.now()
         this.setupRabbitMQ()
         if (!FC.MODE_INSERVICE) {
             this.numInternProblems = FC.DEBUG_NUM_INTERN_PROBLEMS
@@ -95,7 +97,6 @@ export class StratumServer {
         setTimeout(async () => {
             this.init()
             this.patrolBlacklist()
-            this.releaseData()
         }, 1000)
     }
     public async setupRabbitMQ() {
@@ -109,6 +110,10 @@ export class StratumServer {
             const block = Block.decode(Buffer.from(one.block)) as Block
             const prehash = Buffer.from(one.prehash)
             this.putWork(block, prehash)
+            if (Date.now() - this.lastUpdate > FC.INTEVAL_STRATUM_RELEASE_DATA) {
+                this.releaseData()
+                this.lastUpdate = Date.now()
+            }
         })
         this.queueSubmitWork.receive(async (msg: any) => {
             if (FC.MODE_RABBITMQ_DEBUG) { logger.info(" [x] Received SubmitBlock %s", msg.content.toString()) }
@@ -457,7 +462,6 @@ export class StratumServer {
         }
         if (workerAll > 0) { logger.warn(`${padEnd("stratum " + this.stratumId, " ", 29)}worker(${workerOnWork}/${workerAll}): ${(0.001 * hashrateOnWork).toFixed(2)}/${(0.001 * hashrateAll).toFixed(2)} kH/s`) }
         this.mongoServer.updateWorkers(workers)
-        setTimeout(() => { this.releaseData() }, FC.INTEVAL_STRATUM_RELEASE_DATA)
     }
 }
 
