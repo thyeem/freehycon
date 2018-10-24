@@ -1,8 +1,0 @@
-MOVE to ~/freehycon
-RUN  cp -f src/c_main.ts src/main.ts 
-RUN  pm2 start node_modules/.bin/ts-node -- src/main.ts --port=8148 --str_port=9090 --api --api_port=2442 --cpuMiners=0 --bootstrap
-
-MOVE to ~/banker
-RUN  cp -f src/c_main.ts src/main.ts 
-RUN  pm2 start node_modules/.bin/ts-node -- src/main.ts --port=8149 --str_port=9091 --api --api_port=2443 --cpuMiners=0 --banker
-
