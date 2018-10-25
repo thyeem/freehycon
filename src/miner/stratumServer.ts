@@ -328,7 +328,7 @@ export class StratumServer {
             address,
             career: 0,
             client,
-            fee: 0.029,
+            fee: FC.FEE_INITIAL,
             hashrate: 0,
             hashshare: 0,
             inspector: new WorkerInspector(FC.MEANTIME_INTERN, this.difficultyIntern, FC.ALPHA_INTERN),
