@@ -21,8 +21,6 @@ export class WorkerInspector {
     public submits: number
     public jobTimer: IJobTimer
     public mapJob: Map<number, IJob>
-    public mapDemote: Map<number, NodeJS.Timer>
-    public warning: number
 
     constructor(medianTime: number, difficulty: number, alpha: number) {
         this.jobId = 0
@@ -36,9 +34,7 @@ export class WorkerInspector {
         this.maxDeltaTime = this.medianTime / Math.LN2 * FC.TOLERANCE_MAX_SIGMA_INSPECTOR
         this.jobTimer = { start: 0, end: 0, lock: false }
         this.mapJob = new Map<number, IJob>()
-        this.mapDemote = new Map<number, NodeJS.Timer>()
         this.submits = 0
-        this.warning = 0
     }
     public adjustDifficulty() {
         let timeDelta: number
