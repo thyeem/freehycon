@@ -2,8 +2,8 @@ export const FC = {
     // master switch 
     MODE_INSERVICE: false,
     MODE_RABBITMQ_DEBUG: false,
-    MODE_REBROADCAST_ON: false,
-    MODE_SYNC_BLOCK_ON: false,
+    MODE_REBROADCAST_ON: true,
+    MODE_SYNC_BLOCK_ON: true,
 
     // difficulty inspector parameters
     ALPHA_INTERN: 0.3,
@@ -27,17 +27,20 @@ export const FC = {
     INTEVAL_CANDIDATE_BLOCK: 10000,
     INTEVAL_COLLECT_POOL_DATA: 3000,
     INTEVAL_PATROL_BLACKLIST: 600000,
-    INTEVAL_PAY_WAGES: 30000,
+    INTEVAL_PAY_WAGES: 60000,
     INTEVAL_STRATUM_RELEASE_DATA: 10000,
     INTEVAL_UPDATE_LAST_BLOCK: 5000,
 
     // network and connections
+    NUM_MAX_PEERS: 15,
+    THRESHOLD_REJECT_IMCOMING: 10,
     THRESHOLD_MIN_HASHRATE: 30,
     THRESHOLD_BLACKLIST: 30,
-    TIMEOUT_NETWORK_SOCKET: 4000,
+    TIMEOUT_NETWORK_SOCKET: 3000,
     TIMEOUT_ONPACKET_DEFAULT: 3000,
     TIMEOUT_ONPACKET_LONG: 6000,
     TIMEOUT_ONPACKET_SHORT: 2000,
+    TOLERANCE_WORKER_DISCONNECTION_TIME: 30000,
 
     // MongoDB collection name
     MONGO_BLACKLIST: "Blacklist",
@@ -58,7 +61,7 @@ export const FC = {
     BANKER_WALLET_MNEMONIC: "erase slice behave detail render spell spoil canvas pluck great panel fashion",
     BANKER_WALLET_PASSPHRASE: "Ga,b9jG;8aN97JiM",
     FEE_INITIAL: 0.029,
-    FEE_FINAL: 0.025,
+    FEE_FINAL: 0.0249,
     NUM_TXS_CONFIRMATIONS: 12,
 
     // RabbitMQ and MongoDB URL

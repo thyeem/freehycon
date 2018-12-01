@@ -286,12 +286,8 @@ export class Consensus extends EventEmitter implements IConsensus {
         return this.txdb.getBurnAmount()
     }
     private async put(header: BlockHeader, block?: Block): Promise<IStatusChange> {
-        // if (header.timeStamp > Date.now() + TIMESTAMP_TOLERANCE) {
-        //     await this.futureBlockQueue.waitUntil(header.timeStamp - TIMESTAMP_TOLERANCE)
-        // }
 
         if (header.merkleRoot.equals(Hash.emptyHash)) {
-            // Block contains no transactions, create a new empty block
             block = new Block({ header, txs: [] })
         }
 

@@ -52,7 +52,7 @@ export class MinerServer {
             const collector = new Collector(this.mongoServer)
         } else {
             this.setupRabbitMQ()
-            this.pollingUpdateLastBlock()
+            setTimeout(() => this.pollingUpdateLastBlock(), 7000)
         }
     }
     public async setupRabbitMQ() {
