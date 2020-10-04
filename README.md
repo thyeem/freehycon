@@ -1,4 +1,8 @@
-# FreeHycon Mining Pool
+<p align="center"> <img src="hycon.png" height="100%"/> </p>
+
+# FreeHycon
+
+The *most transparent and efficient HYCON mining pool* implementation ever
 
 ### Background 
 
@@ -28,16 +32,51 @@ Miners will admit it.
 ![fee](fee.svg)
 
 ### How to build
-`FreeHycon` is based on [HYCON-Core](https://github.com/Team-Hycon/hycon-core) and the path below `src/miner` is the full implentation of `FreeHycon`.  
+`FreeHycon` is based on [`HYCON-Core`](https://github.com/Team-Hycon/hycon-core) and the path below `src/miner` is the full implentation of `FreeHycon`.  
 
-Please refer to [FreeHycon installation page](<https://github.com/thyeem/freehycon_release>).
+```bash
+$ tree docker
+docker/
+├── Dockerfile
+├── README.md
+├── build.sh
+├── config.ts
+├── config_example.png
+├── configure
+├── peerdbsql
+├── run.sh
+└── start.sh
+
+## configure with your own parameter
+## refer to an example below how to do this: 
+$ cd docker 
+$ ./configure 
+
+
+## build directly a docker image for freehycon mining pool solution.
+## it will take 5-10 mins.
+$ ./build.sh
+
+## then you can find the "freehycon" docker image here.
+$ docker images
+
+## run all the mining pool solution at once
+$ ./start.sh --all 
+
+## or run separately if needed
+$ ./start.sh --main
+$ ./start.sh --sub
+$ ./start.sh --stratum
+```
+
+![Example of configure](config.png)
+
+
 
 ### Compatibility
 
 Unfortunately, this mining pool only works under the version <= 0.0.9 (Nakamoto HYCON protocol).
 We have stopped developing it for a while. Then, there were two hard forks including the implementation of [_GHOST protocol_](https://medium.com/@teamhycon/about-ghost-protocol-44006a245ad7) and reduction in mining reward.
 `FreeHycon` does not support _Ghost Protocol_ for now but would be someday (really? -_-).  
-
-### 
 
 

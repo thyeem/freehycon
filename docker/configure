@@ -1,0 +1,78 @@
+#!/usr/bin/perl 
+
+use strict;
+use warnings;
+
+sub trim {
+    my $str = shift;
+    $str =~ s/^\s+|\s+$//g;
+    return $str;
+}
+
+sub prompt {
+    my $msg = shift;
+    my $bool = shift;
+    my $suffix = $bool ? "[y/n/q] " : "[give any or q for quit]\n";
+
+    print "\n$msg $suffix";
+    my $input = <STDIN>;
+    chomp $input;
+    $input = trim($input);
+
+    exit if $input eq "q";
+    return $input;
+}
+
+sub question {
+    my $msg = shift;
+    my $bool = shift;
+    my $answer;
+    do { $answer = prompt($msg, $bool) } while ($answer eq "");
+    return $answer;
+}
+
+sub survey {
+    my $answer = shift;
+    my $sure;
+    do {
+        $answer->{wallet_major}    = question("[1] major wallet address of the pool? (H2nVWAEBuFRMYBqUN4tLXfoHhc93H7KVP)", 0);
+        $answer->{wallet_minor}    = question("[2] minor pool wallet address of the pool? (H4HBmorUaLXWahcbivgWXUdx8fSUnGpPr)", 0);
+        $answer->{wallet_founder}  = question("[3] wallet address of the pool owner? (use comma if multiple like: H2nVW, H4HBm ...)", 0);
+        $answer->{tx_fee}          = question("[4] transaction fee of the pool in HYC? (0.000001)", 0);
+        $answer->{pool_fee}        = question("[5] the pool fee in percentage? (1.5)", 0);
+        $answer->{mnemonic}        = question("[6] mnemonic pharse of the major wallet address of the pool? (jump great bus baby ...)", 0);
+        $answer->{passphrase}      = question("[7] passphrase of the major wallet address of the pool? (rFdm+EWuVa,8w)", 0);
+        $sure = question("Are you sure the answers above?", 1);
+
+    } while ($sure !~ /^\s*[yY]\s*$/);
+
+    $answer->{pool_fee} *= 0.01;
+    my @founders = split /,/, $answer->{wallet_founder};
+    $answer->{wallet_founder} = join ', ', map { '"' . trim($_) . '"' } @founders;
+    return $answer;
+}
+
+sub replace_file {
+    my $data = shift;
+    my $fin  = "config.ts";
+    my $fout = "config.out";
+    open my $FHIN, '<', $fin; 
+    open my $FHOUT, '>', $fout; 
+    while ( <$FHIN> ) {
+        s/$1/\"$data->{wallet_major}\"/ if /BANKER_WALLET_FREEHYCON: (.+),/;
+        s/$1/\"$data->{wallet_minor}\"/ if /BANKER_WALLET_FREEMINER: (.+),/;
+        s/$1/$data->{wallet_founder}/   if /BANKER_WALLET_FOUNDER: \[(.+)\],/;
+        s/$1/$data->{tx_fee}/           if /BANKER_TX_FEE: (.+),/;
+        s/$1/$data->{pool_fee}/         if /FEE_INITIAL: (.+),/;
+        s/$1/$data->{pool_fee}/         if /FEE_FINAL: (.+),/;
+        s/$1/\"$data->{mnemonic}\"/     if /BANKER_WALLET_MNEMONIC: (.+),/;
+        s/$1/\"$data->{passphrase}\"/   if /BANKER_WALLET_PASSPHRASE: (.+),/;
+        print {$FHOUT} $_;
+    }
+    close $FHOUT;
+    close $FHIN;
+    rename $fout, $fin;
+}
+
+replace_file(survey({}));
+

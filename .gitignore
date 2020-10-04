@@ -1,6 +1,7 @@
 *.ts-e
 *.sw?
 .DS_Store
+.vscode
 build
 blockdb*
 coverage
@@ -17,6 +18,5 @@ txDB*
 minedDB*
 wallet/
 worldstate*
-*.png
 miners.json
 blocks.json
